@@ -1,13 +1,13 @@
 #!/bin/sh
 
-cat <<EOF | mustache - Dockerfile.mustache > docker/debian.dockerfile
+cat <<EOF | mustache - dockerfile.mustache > ./debian.dockerfile
 ---
 debian: true
 ---
 EOF
 
-cat <<EOF | mustache - Dockerfile.mustache > chrome/alpine.dockerfile
----
-alpine: true
----
-EOF
+#cat <<EOF | mustache - dockerfile.mustache > ./alpine.dockerfile
+#---
+#alpine: true
+#---
+#EOF

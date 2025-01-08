@@ -1,5 +1,8 @@
 build/
 **/__pycache__
+autom4te.cache/
+Makefile
 config.log
 config.status
 .DS_Store
+*~

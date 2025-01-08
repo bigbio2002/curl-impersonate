@@ -7,13 +7,13 @@ SHELL := bash
 .DELETE_ON_ERROR:
 # MAKEFLAGS += --warn-undefined-variables
 # MAKEFLAGS += --no-builtin-rules
-SUBJOBS := 4
+SUBJOBS := 1
 
 BROTLI_VERSION := 1.1.0
  # In case this is changed, update build-and-test-make.yml as well
 BORING_SSL_COMMIT := cd95210465496ac2337b313cf49f607762abe286
-NGHTTP2_VERSION := nghttp2-1.63.0
-NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v1.63.0/nghttp2-1.63.0.tar.bz2
+NGHTTP2_VERSION := 1.63.0
+NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.bz2
 CURL_VERSION := curl-8_7_1
 
 # https://github.com/google/brotli/commit/641bec0e30bea648b3da1cd90fc6b44deb429f71
@@ -22,7 +22,7 @@ brotli_static_libs := $(brotli_install_dir)/lib/libbrotlicommon.a $(brotli_insta
 boringssl_dir := $(abspath boringssl-$(BORING_SSL_COMMIT))
 boringssl_install_dir := $(boringssl_dir)/build
 boringssl_static_libs := $(boringssl_dir)/lib/libssl.a $(boringssl_dir)/lib/libcrypto.a
-nghttp2_install_dir := $(abspath $(NGHTTP2_VERSION)/installed)
+nghttp2_install_dir := $(abspath nghttp2-$(NGHTTP2_VERSION)/installed)
 nghttp2_static_libs := $(nghttp2_install_dir)/lib/libnghttp2.a
 
 # Dependencies needed to compile the Chrome version
@@ -50,6 +50,11 @@ with_ca_path = @with_ca_path@
 
 CC = @CC@
 CXX = @CXX@
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@
+ASMFLAGS = @ASMFLAGS@
+LDFLAGS = @LDFLAGS@
 STRIP = @STRIP@
 
 # Auto-generate Makefile help.
@@ -111,7 +116,7 @@ chrome-clean: ## Clean build artifacts of the Chrome version. Use after re-runni
 clean: ## Remove all build artifacts, including dependencies
 	rm -Rf brotli-$(BROTLI_VERSION).tar.gz brotli-$(BROTLI_VERSION)
 	rm -Rf boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_SSL_COMMIT)
-	rm -Rf $(NGHTTP2_VERSION).tar.bz2 $(NGHTTP2_VERSION)
+	rm -Rf nghttp2-$(NGHTTP2_VERSION).tar.bz2 nghttp2-$(NGHTTP2_VERSION)
 	rm -Rf $(CURL_VERSION).tar.gz $(CURL_VERSION)
 
 brotli-$(BROTLI_VERSION).tar.gz:
@@ -138,14 +143,17 @@ $(brotli_static_libs): brotli-$(BROTLI_VERSION).tar.gz
 	esac
 
 	@cmake@ -DCMAKE_BUILD_TYPE=Release \
-	        -DCMAKE_INSTALL_PREFIX=./installed \
-	        -DCMAKE_INSTALL_LIBDIR=lib \
-	        -DCMAKE_CXX_COMPILER=$(CXX) \
-	        -DCMAKE_C_COMPILER=$(CC) \
-			-DCMAKE_C_FLAGS="$(CFLAGS)" \
+	        -DCMAKE_C_COMPILER="$(CC)" \
+	        -DCMAKE_CXX_COMPILER="$(CXX)" \
+		-DCMAKE_C_FLAGS="$(CFLAGS) $(CPPFLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(CXXFLAGS) $(CPPFLAGS)" \
+		-DCMAKE_ASM_FLAGS="$(ASMFLAGS)" \
+		-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS)" \
 	        -DCMAKE_SYSTEM_NAME=$$system_name \
 	        -DCMAKE_SYSTEM_PROCESSOR=$(host_cpu) \
 	        -DBUILD_SHARED_LIBS=OFF \
+	        -DCMAKE_INSTALL_PREFIX=./installed \
+	        -DCMAKE_INSTALL_LIBDIR=lib \
 	        ..
 
 	@cmake@ --build . --config Release --target install --parallel $(SUBJOBS)
@@ -185,14 +193,17 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_
 	# In addition, guard these options with -Wno-unknown-warning-option to
 	# prevent clang from failing on them.
 	@cmake@ -DCMAKE_BUILD_TYPE=Release \
-			-DCMAKE_POSITION_INDEPENDENT_CODE=on \
-			-DCMAKE_C_FLAGS="$(CFLAGS) -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds" \
-			-DCMAKE_CXX_COMPILER=$(CXX) \
-			-DCMAKE_C_COMPILER=$(CC) \
-			-DCMAKE_SYSTEM_NAME=$$system_name \
-			-DCMAKE_SYSTEM_PROCESSOR=$(host_cpu) \
-			-GNinja \
-			..
+		-DCMAKE_C_COMPILER="$(CC)" \
+		-DCMAKE_CXX_COMPILER="$(CXX)" \
+		-DCMAKE_C_FLAGS="$(CFLAGS) $(CPPFLAGS) -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-error=maybe-uninitialized -Wno-error=unused-function" \
+		-DCMAKE_CXX_FLAGS="$(CXXFLAGS) $(CPPFLAGS)" \
+		-DCMAKE_ASM_FLAGS="$(ASMFLAGS)" \
+		-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS)" \
+		-DCMAKE_SYSTEM_NAME=$$system_name \
+		-DCMAKE_SYSTEM_PROCESSOR=$(host_cpu) \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=on \
+		-GNinja \
+		..
 	@ninja@ -j$(SUBJOBS)
 
 	# Fix the directory structure so that curl can compile against it.
@@ -202,12 +213,12 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_
 	cp crypto/libcrypto.a $(boringssl_dir)/lib
 
 
-$(NGHTTP2_VERSION).tar.bz2:
-	curl -L $(NGHTTP2_URL) -o $(NGHTTP2_VERSION).tar.bz2
+nghttp2-$(NGHTTP2_VERSION).tar.bz2:
+	curl -L $(NGHTTP2_URL) -o nghttp2-$(NGHTTP2_VERSION).tar.bz2
 
-$(nghttp2_static_libs): $(NGHTTP2_VERSION).tar.bz2
-	tar -xf $(NGHTTP2_VERSION).tar.bz2
-	cd $(NGHTTP2_VERSION)
+$(nghttp2_static_libs): nghttp2-$(NGHTTP2_VERSION).tar.bz2
+	tar -xf nghttp2-$(NGHTTP2_VERSION).tar.bz2
+	cd nghttp2-$(NGHTTP2_VERSION)
 
 	# Set up the configure flags to nghttp2.
 	# If the user provided the --host flag to our configure script
@@ -221,7 +232,9 @@ $(nghttp2_static_libs): $(NGHTTP2_VERSION).tar.bz2
 	  fi; \
 	}
 
-	./configure $$config_flags
+	CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+		./configure $$config_flags
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
@@ -265,25 +278,30 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 	  if test -n "$(with_zlib)"; then \
 	    config_flags="$$config_flags --with-zlib=$(with_zlib)"; \
 	  else \
-	    config_flags+=" --with-zlib"; \
+	    config_flags="$$config_flags --with-zlib"; \
 	  fi; \
 	  if test -n "$(with_zstd)"; then \
 	    config_flags="$$config_flags --with-zstd=$(with_zstd)"; \
 	  else \
-	    config_flags+=" --with-zstd"; \
+	    config_flags="$$config_flags --with-zstd"; \
 	  fi; \
 	  if test -n "$(with_ca_bundle)"; then \
-		config_flags="$$config_flags --with-ca-bundle=$(with_ca_bundle)"; \
+	    config_flags="$$config_flags --with-ca-bundle=$(with_ca_bundle)"; \
 	  fi; \
 	  if test -n "$(with_ca_path)"; then \
-		config_flags="$$config_flags --with-ca-path=$(with_ca_path)"; \
+	    config_flags="$$config_flags --with-ca-path=$(with_ca_path)"; \
 	  fi; \
-	  add_libs="-pthread -lc++"; \
+	  add_libs="-pthread"; \
 	}
 
 	echo "Configuring curl with: $$config_flags"
 
-	CXXFLAGS="-stdlib=libc++" LDFLAGS="-lc++" ./configure $$config_flags LIBS="$$add_libs"
+	#CXXFLAGS="-stdlib=libc++" LDFLAGS="-lc++"
+	CC="$(CC)" CXX="$(CXX)" \
+	CPPFLAGS="$(CPPFLAGS) -I$(boringssl_dir)/include" \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+		./configure $$config_flags \
+		LIBS="$$add_libs"
 
 	# Remove possible leftovers from a previous compilation
 	$(MAKE) clean MAKEFLAGS=

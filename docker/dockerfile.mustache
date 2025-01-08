@@ -63,7 +63,7 @@ RUN cd brotli-${BROTLI_VERSION} && \
 
 # BoringSSL doesn't have versions. Choose a commit that is used in a stable
 # Chromium version.
-ARG BORING_SSL_COMMIT=d24a38200fef19150eef00cad35b138936c08767
+ARG BORING_SSL_COMMIT=cd95210465496ac2337b313cf49f607762abe286
 RUN curl -L https://github.com/google/boringssl/archive/${BORING_SSL_COMMIT}.zip -o boringssl.zip && \
     unzip boringssl && \
     mv boringssl-${BORING_SSL_COMMIT} boringssl
@@ -99,9 +99,11 @@ RUN cd ${NGHTTP2_VERSION} && \
     make && make install
 
 # Download curl.
-ARG CURL_VERSION=curl-8.7.1
-RUN curl -o ${CURL_VERSION}.tar.xz https://curl.se/download/${CURL_VERSION}.tar.xz
-RUN tar xf ${CURL_VERSION}.tar.xz
+ARG CURL_VERSION=curl-8_7_1
+RUN curl -o ${CURL_VERSION}.tar.gz -L https://github.com/curl/curl/archive/${CURL_VERSION}.tar.gz
+RUN rm -Rf ${CURL_VERSION} && \
+    tar xf ${CURL_VERSION}.tar.gz && \
+    mv curl-${CURL_VERSION} ${CURL_VERSION}
 
 # Patch curl and re-generate the configure script
 COPY patches/curl-*.patch ${CURL_VERSION}/
@@ -109,7 +111,7 @@ RUN cd ${CURL_VERSION} && \
     for p in $(ls curl-*.patch); do patch -p1 < $p; done && \
     autoreconf -fi
 
-# Compile curl with nghttp2, libbrotli and boringssl.
+# Compile curl with nghttp2, libbrotli and boringssl (chrome).
 # Enable keylogfile for debugging of TLS traffic.
 RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
@@ -118,11 +120,13 @@ RUN cd ${CURL_VERSION} && \
                 --enable-websockets \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
+		--with-zlib \
                 --with-zstd \
                 --enable-ech \
+		--enable-ipv6 \
                 --with-openssl=/build/boringssl/build \
                 LIBS="-pthread" \
-                CFLAGS="-I/build/boringssl/build" \
+                CPPFLAGS="-I/build/boringssl/build" \
                 USE_CURL_SSLKEYLOGFILE=true && \
     make && make install
 
@@ -147,11 +151,13 @@ RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
+		--with-zlib \
                 --with-zstd \
                 --enable-ech \
+		--enable-ipv6 \
                 --with-openssl=/build/boringssl/build \
                 LIBS="-pthread" \
-                CFLAGS="-I/build/boringssl/build" \
+                CPPFLAGS="-I/build/boringssl/build" \
                 USE_CURL_SSLKEYLOGFILE=true && \
     make clean && make && make install
 

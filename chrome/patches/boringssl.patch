@@ -95,7 +95,7 @@ index c9424c98b..ee757ea72 100644
 +  char *ext = strtok(tmp, delimiter);
 +  size_t idx = 0;
 +  while (ext != nullptr) {
-+    unsigned ext_index;
++    unsigned ext_index = 0;
 +    tls_extension_find(&ext_index, atoi(ext));
 +    // fprintf(stderr, "found %d -> %d, ", atoi(ext), ext_index);
 +    order[idx] = ext_index;
@@ -633,3 +633,37 @@ index 76ba0849d..819cc53ba 100644
    }
  
    // Check for invalid algorithms, and filter out |SSL_SIGN_RSA_PKCS1_MD5_SHA1|.
+--
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -5198,7 +5198,7 @@
+   std::vector<CRYPTO_BUFFER *> certs = {leaf1.get(), ca1.get()};
+   ASSERT_TRUE(SSL_CTX_set_chain_and_key(ctx.get(), certs.data(), certs.size(),
+                                         key1.get(), nullptr));
+-  certs = {leaf2.get()};
++  certs = {leaf2.get(), ca1.get()};
+   ASSERT_TRUE(SSL_CTX_set_chain_and_key(ctx.get(), certs.data(), certs.size(),
+                                         key2.get(), nullptr));
+ 
+--- a/ssl/test/CMakeLists.txt
++++ b/ssl/test/CMakeLists.txt
+@@ -18,7 +18,7 @@
+ 
+     async_bio.cc
+     handshake_util.cc
+-    handshaker.cc
++    handshaker.cc 
+     mock_quic_transport.cc
+     packeted_bio.cc
+     settings_writer.cc
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -486,7 +486,7 @@
+ # themselves as dependencies next to the target definition.
+ add_custom_target(all_tests)
+ 
+-add_subdirectory(ssl/test)
++add_subdirectory(ssl/test) 
+ add_subdirectory(util/fipstools)
+ add_subdirectory(util/fipstools/acvp/modulewrapper)
+ 

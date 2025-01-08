@@ -93,6 +93,8 @@ AC_CHECK_PROGS([cmake], [cmake3 cmake])
 
 AC_CHECK_PROGS([ninja], [ninja ninja-build])
 
+AC_SUBST([ASMFLAGS])
+
 AC_CONFIG_FILES([Makefile])
 
 AC_OUTPUT
