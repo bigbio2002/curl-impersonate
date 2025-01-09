@@ -135,176 +135,11 @@ index c9424c98b..ee757ea72 100644
      const size_t len_before = CBB_len(&extensions);
      if (!kExtensions[i].add_clienthello(hs, &extensions, &extensions, type)) {
        OPENSSL_PUT_ERROR(SSL, SSL_R_ERROR_ADDING_EXTENSION);
-diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
-index f87e00002..daa805266 100644
---- a/ssl/handshake_client.cc
-+++ b/ssl/handshake_client.cc
-@@ -215,14 +215,6 @@ static void ssl_get_client_disabled(const SSL_HANDSHAKE *hs,
-   }
- }
- 
--static bool ssl_add_tls13_cipher(CBB *cbb, uint16_t cipher_id,
--                                 ssl_compliance_policy_t policy) {
--  if (ssl_tls13_cipher_meets_policy(cipher_id, policy)) {
--    return CBB_add_u16(cbb, cipher_id);
--  }
--  return true;
--}
--
- static bool ssl_write_client_cipher_list(const SSL_HANDSHAKE *hs, CBB *out,
-                                          ssl_client_hello_type_t type) {
-   const SSL *const ssl = hs->ssl;
-@@ -240,41 +232,9 @@ static bool ssl_write_client_cipher_list(const SSL_HANDSHAKE *hs, CBB *out,
-     return false;
-   }
- 
--  // Add TLS 1.3 ciphers. Order ChaCha20-Poly1305 relative to AES-GCM based on
--  // hardware support.
--  if (hs->max_version >= TLS1_3_VERSION) {
--    static const uint16_t kCiphersNoAESHardware[] = {
--        TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
--        TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
--        TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
--    };
--    static const uint16_t kCiphersAESHardware[] = {
--        TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
--        TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
--        TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
--    };
--    static const uint16_t kCiphersCNSA[] = {
--        TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
--        TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
--        TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
--    };
--
--    const bool has_aes_hw = ssl->config->aes_hw_override
--                                ? ssl->config->aes_hw_override_value
--                                : EVP_has_aes_hardware();
--    const bssl::Span<const uint16_t> ciphers =
--        ssl->config->tls13_cipher_policy == ssl_compliance_policy_cnsa_202407
--            ? bssl::Span<const uint16_t>(kCiphersCNSA)
--            : (has_aes_hw ? bssl::Span<const uint16_t>(kCiphersAESHardware)
--                          : bssl::Span<const uint16_t>(kCiphersNoAESHardware));
--
--    for (auto cipher : ciphers) {
--      if (!ssl_add_tls13_cipher(&child, cipher,
--                                ssl->config->tls13_cipher_policy)) {
--        return false;
--      }
--    }
--  }
-+  // curl-impersonate: TLS 1.3 suites are added uniformly with other suites.
-+  // TODO: in new versions, perhaps it's OK to keep the original code here.
-+
- 
-   if (hs->min_version < TLS1_3_VERSION && type != ssl_client_hello_inner) {
-     bool any_enabled = false;
-@@ -326,8 +286,7 @@ bool ssl_write_client_hello_without_extensions(const SSL_HANDSHAKE *hs,
-   }
- 
-   // Do not send a session ID on renegotiation.
--  if (!ssl->s3->initial_handshake_complete &&
--      !empty_session_id &&
-+  if (!ssl->s3->initial_handshake_complete && !empty_session_id &&
-       !CBB_add_bytes(&child, hs->session_id.data(), hs->session_id.size())) {
-     return false;
-   }
-@@ -408,7 +367,7 @@ static bool parse_server_version(const SSL_HANDSHAKE *hs, uint16_t *out_version,
-   }
- 
-   if (!CBS_get_u16(&supported_versions.data, out_version) ||
--       CBS_len(&supported_versions.data) != 0) {
-+      CBS_len(&supported_versions.data) != 0) {
-     *out_alert = SSL_AD_DECODE_ERROR;
-     return false;
-   }
-@@ -555,8 +514,9 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
-     hs->early_data_offered = true;
-   }
- 
-+  // curl-impersonate: set extension orders
-   if (!ssl_setup_key_shares(hs, /*override_group_id=*/0) ||
--      !ssl_setup_extension_permutation(hs) ||
-+      !ssl_setup_extension_permutation(hs) || !ssl_set_extension_order(hs) ||
-       !ssl_encrypt_client_hello(hs, MakeConstSpan(ech_enc, ech_enc_len)) ||
-       !ssl_add_client_hello(hs)) {
-     return ssl_hs_error;
-@@ -583,7 +543,8 @@ static enum ssl_hs_wait_t do_enter_early_data(SSL_HANDSHAKE *hs) {
-   return ssl_hs_ok;
- }
- 
--static enum ssl_hs_wait_t do_early_reverify_server_certificate(SSL_HANDSHAKE *hs) {
-+static enum ssl_hs_wait_t do_early_reverify_server_certificate(
-+    SSL_HANDSHAKE *hs) {
-   SSL *const ssl = hs->ssl;
-   if (ssl->ctx->reverify_on_resume) {
-     // Don't send an alert on error. The alert would be in the clear, which the
-@@ -815,8 +776,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
-   const SSL_CIPHER *cipher = SSL_get_cipher_by_value(server_hello.cipher_suite);
-   uint32_t mask_a, mask_k;
-   ssl_get_client_disabled(hs, &mask_a, &mask_k);
--  if (cipher == nullptr ||
--      (cipher->algorithm_mkey & mask_k) ||
-+  if (cipher == nullptr || (cipher->algorithm_mkey & mask_k) ||
-       (cipher->algorithm_auth & mask_a) ||
-       SSL_CIPHER_get_min_version(cipher) > ssl_protocol_version(ssl) ||
-       SSL_CIPHER_get_max_version(cipher) < ssl_protocol_version(ssl) ||
-@@ -1018,8 +978,7 @@ static enum ssl_hs_wait_t do_read_certificate_status(SSL_HANDSHAKE *hs) {
-   if (!CBS_get_u8(&certificate_status, &status_type) ||
-       status_type != TLSEXT_STATUSTYPE_ocsp ||
-       !CBS_get_u24_length_prefixed(&certificate_status, &ocsp_response) ||
--      CBS_len(&ocsp_response) == 0 ||
--      CBS_len(&certificate_status) != 0) {
-+      CBS_len(&ocsp_response) == 0 || CBS_len(&certificate_status) != 0) {
-     OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
-     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-     return ssl_hs_error;
-@@ -1480,7 +1439,9 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
-     ssl_key_usage_t intended_use = (alg_k & SSL_kRSA)
-                                        ? key_usage_encipherment
-                                        : key_usage_digital_signature;
--    if (!ssl_cert_check_key_usage(&leaf_cbs, intended_use)) {
-+    // curl-impersonate: optionally disable ssl key usage check
-+    if (hs->config->key_usage_check_enabled &&
-+        !ssl_cert_check_key_usage(&leaf_cbs, intended_use)) {
-       if (hs->config->enforce_rsa_key_usage ||
-           EVP_PKEY_id(hs->peer_pubkey.get()) != EVP_PKEY_RSA) {
-         return ssl_hs_error;
-@@ -1551,8 +1512,7 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
-         !CBB_reserve(&enc_pms, &ptr, RSA_size(rsa)) ||
-         !RSA_encrypt(rsa, &enc_pms_len, ptr, RSA_size(rsa), pms.data(),
-                      pms.size(), RSA_PKCS1_PADDING) ||
--        !CBB_did_write(&enc_pms, enc_pms_len) ||
--        !CBB_flush(&body)) {
-+        !CBB_did_write(&enc_pms, enc_pms_len) || !CBB_flush(&body)) {
-       return ssl_hs_error;
-     }
-   } else if (alg_k & SSL_kECDHE) {
-@@ -1665,8 +1625,7 @@ static enum ssl_hs_wait_t do_send_client_certificate_verify(SSL_HANDSHAKE *hs) {
-       return ssl_hs_private_key_operation;
-   }
- 
--  if (!CBB_did_write(&child, sig_len) ||
--      !ssl_add_message_cbb(ssl, cbb.get())) {
-+  if (!CBB_did_write(&child, sig_len) || !ssl_add_message_cbb(ssl, cbb.get())) {
-     return ssl_hs_error;
-   }
- 
-@@ -1735,8 +1694,7 @@ static bool can_false_start(const SSL_HANDSHAKE *hs) {
-   // TLS 1.2 and TLS 1.3, but there are too many TLS 1.2 deployments to
-   // sacrifice False Start on them. Instead, we rely on the ServerHello.random
-   // downgrade signal, which we unconditionally enforce.
--  if (SSL_is_dtls(ssl) ||
--      SSL_version(ssl) != TLS1_2_VERSION ||
-+  if (SSL_is_dtls(ssl) || SSL_version(ssl) != TLS1_2_VERSION ||
-       hs->new_cipher->algorithm_mkey != SSL_kECDHE ||
-       hs->new_cipher->algorithm_mac != SSL_AEAD) {
-     return false;
 diff --git a/ssl/internal.h b/ssl/internal.h
 index 092b2987e..5ace601f6 100644
 --- a/ssl/internal.h
 +++ b/ssl/internal.h
-@@ -807,9 +807,14 @@ BSSL_NAMESPACE_BEGIN
+@@ -807,8 +807,14 @@ BSSL_NAMESPACE_BEGIN
  
  // Bits for |algorithm_mac| (symmetric authentication).
  #define SSL_SHA1 0x00000001u
@@ -312,15 +147,15 @@ index 092b2987e..5ace601f6 100644
 +// SSL_SHA256 and SSL_SHA384 were removed in
 +// https://boringssl-review.googlesource.com/c/boringssl/+/27944/
 +// but restored to impersonate browsers with older ciphers.
- #define SSL_SHA256 0x00000002u
++#define SSL_SHA256 0x00000002u
 +#define SSL_SHA384 0x00000004u
  // SSL_AEAD is set for all AEADs.
--#define SSL_AEAD 0x00000004u
+-#define SSL_AEAD 0x00000002u
 +#define SSL_AEAD 0x00000008u
  
  // Bits for |algorithm_prf| (handshake digest).
  #define SSL_HANDSHAKE_MAC_DEFAULT 0x1
-@@ -2514,6 +2519,12 @@ bssl::UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSL *ssl,
+@@ -2514,6 +2520,12 @@ bssl::UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSL *ssl,
  // for |hs|, if applicable. It returns true on success and false on error.
  bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs);
  
@@ -333,7 +168,7 @@ index 092b2987e..5ace601f6 100644
  // ssl_setup_key_shares computes client key shares and saves them in |hs|. It
  // returns true on success and false on failure. If |override_group_id| is zero,
  // it offers the default groups, including GREASE. If it is non-zero, it offers
-@@ -3382,6 +3393,12 @@ struct SSL_CONFIG {
+@@ -3382,6 +3394,12 @@ struct SSL_CONFIG {
    // crypto
    UniquePtr<SSLCipherPreferenceList> cipher_list;
  
@@ -346,7 +181,7 @@ index 092b2987e..5ace601f6 100644
    // This is used to hold the local certificate used (i.e. the server
    // certificate for a server or the client certificate for a client).
    UniquePtr<CERT> cert;
-@@ -3856,6 +3873,12 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
+@@ -3856,6 +3874,12 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
  
    bssl::UniquePtr<bssl::SSLCipherPreferenceList> cipher_list;
  
@@ -447,7 +282,7 @@ index 97e69ff90..dc3ca1526 100644
      // Cipher C013
      {
       TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-@@ -335,6 +398,36 @@ static constexpr SSL_CIPHER kCiphers[] = {
+@@ -335,6 +398,62 @@ static constexpr SSL_CIPHER kCiphers[] = {
       SSL_HANDSHAKE_MAC_DEFAULT,
      },
  
@@ -470,6 +305,7 @@ index 97e69ff90..dc3ca1526 100644
 +     SSL_SHA256,
 +     SSL_HANDSHAKE_MAC_SHA256,
 +    },
++
 +    // Cipher C024
 +    {
 +     TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_SHA384,
@@ -481,13 +317,19 @@ index 97e69ff90..dc3ca1526 100644
 +     SSL_SHA384,
 +     SSL_HANDSHAKE_MAC_SHA384,
 +    },
-     // Cipher C027
-     {
-      TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-@@ -346,6 +439,17 @@ static constexpr SSL_CIPHER kCiphers[] = {
-      SSL_SHA256,
-      SSL_HANDSHAKE_MAC_SHA256,
-     },
++
++    // Cipher C027
++    {
++     TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
++     "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
++     TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
++     SSL_kECDHE,
++     SSL_aRSA_SIGN,
++     SSL_AES128,
++     SSL_SHA256,
++     SSL_HANDSHAKE_MAC_SHA256,
++    },
++
 +    // Cipher C028
 +    {
 +     TLS1_TXT_ECDHE_RSA_WITH_AES_256_SHA384,
@@ -499,30 +341,15 @@ index 97e69ff90..dc3ca1526 100644
 +     SSL_SHA384,
 +     SSL_HANDSHAKE_MAC_SHA384,
 +    },
- 
++
      // GCM based TLS v1.2 ciphersuites from RFC 5289
  
-@@ -467,16 +571,6 @@ Span<const SSL_CIPHER> AllCiphers() {
-   return MakeConstSpan(kCiphers, OPENSSL_ARRAY_SIZE(kCiphers));
- }
- 
--static constexpr size_t NumTLS13Ciphers() {
--  size_t num = 0;
--  for (const auto &cipher : kCiphers) {
--    if (cipher.algorithm_mkey == SSL_kGENERIC) {
--      num++;
--    }
--  }
--  return num;
--}
--
- #define CIPHER_ADD 1
- #define CIPHER_KILL 2
- #define CIPHER_DEL 3
-@@ -554,6 +648,11 @@ static const CIPHER_ALIAS kCipherAliases[] = {
+     // Cipher C02B
+@@ -554,6 +673,12 @@ static const CIPHER_ALIAS kCipherAliases[] = {
      // MAC aliases
      {"SHA1", ~0u, ~0u, ~0u, SSL_SHA1, 0},
      {"SHA", ~0u, ~0u, ~0u, SSL_SHA1, 0},
++
 +    // curl-impersonate:
 +    // Removed in https://boringssl-review.googlesource.com/c/boringssl/+/27944/
 +    // but restored to impersonate browsers with older ciphers.
@@ -531,17 +358,15 @@ index 97e69ff90..dc3ca1526 100644
  
      // Legacy protocol minimum version aliases. "TLSv1" is intentionally the
      // same as "SSLv3".
-@@ -1147,13 +1246,22 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+@@ -1147,13 +1272,20 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
        TLS1_CK_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
    };
    static const uint16_t kLegacyCiphers[] = {
 +      TLS1_CK_RSA_WITH_AES_128_SHA256 & 0xffff,
 +      TLS1_CK_RSA_WITH_AES_256_SHA256 & 0xffff,
-+      0x0300C008 & 0xffff,
-+      // TLS1_CK_ECDHE_ECDSA_WITH_DES_192_CBC3_SHA & 0xffff,
++      TLS1_CK_ECDHE_ECDSA_WITH_DES_192_CBC3_SHA & 0xffff,
        TLS1_CK_ECDHE_ECDSA_WITH_AES_128_CBC_SHA & 0xffff,
-+      0x0300C012 & 0xffff,
-+      // TLS1_CK_ECDHE_RSA_WITH_DES_192_CBC3_SHA & 0xffff,
++      TLS1_CK_ECDHE_RSA_WITH_DES_192_CBC3_SHA & 0xffff,
        TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA & 0xffff,
        TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA & 0xffff,
        TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA & 0xffff,
@@ -554,7 +379,7 @@ index 97e69ff90..dc3ca1526 100644
        TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 & 0xffff,
        TLS1_CK_RSA_WITH_AES_256_GCM_SHA384 & 0xffff,
        TLS1_CK_RSA_WITH_AES_128_SHA & 0xffff,
-@@ -1162,11 +1270,16 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+@@ -1162,11 +1294,16 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
        TLS1_CK_PSK_WITH_AES_256_CBC_SHA & 0xffff,
        SSL3_CK_RSA_DES_192_CBC3_SHA & 0xffff,
    };
@@ -574,7 +399,7 @@ index 97e69ff90..dc3ca1526 100644
    for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(co_list); i++) {
      co_list[i].next =
          i + 1 < OPENSSL_ARRAY_SIZE(co_list) ? &co_list[i + 1] : nullptr;
-@@ -1202,8 +1315,13 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+@@ -1202,8 +1339,13 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
      co_list[num++].cipher = SSL_get_cipher_by_value(id);
      assert(co_list[num - 1].cipher != nullptr);
    }
@@ -667,3 +492,52 @@ index 76ba0849d..819cc53ba 100644
  add_subdirectory(util/fipstools)
  add_subdirectory(util/fipstools/acvp/modulewrapper)
  
+--- boringssl-3a667d10e94186fd503966f5638e134fe9fb4080/ssl/handshake_client.orig.cc	2025-01-08 12:47:42.740292211 -0500
++++ boringssl-3a667d10e94186fd503966f5638e134fe9fb4080/ssl/handshake_client.cc	2025-01-08 13:38:08.873927005 -0500
+@@ -232,22 +232,8 @@
+     return false;
+   }
+ 
+-  // Add TLS 1.3 ciphers. Order ChaCha20-Poly1305 relative to AES-GCM based on
+-  // hardware support.
+-  if (hs->max_version >= TLS1_3_VERSION) {
+-    if (!EVP_has_aes_hardware() &&
+-        !CBB_add_u16(&child, TLS1_CK_CHACHA20_POLY1305_SHA256 & 0xffff)) {
+-      return false;
+-    }
+-    if (!CBB_add_u16(&child, TLS1_CK_AES_128_GCM_SHA256 & 0xffff) ||
+-        !CBB_add_u16(&child, TLS1_CK_AES_256_GCM_SHA384 & 0xffff)) {
+-      return false;
+-    }
+-    if (EVP_has_aes_hardware() &&
+-        !CBB_add_u16(&child, TLS1_CK_CHACHA20_POLY1305_SHA256 & 0xffff)) {
+-      return false;
+-    }
+-  }
++  //curl-impersonate: TLS 1.3 suites are added uniformly with other suites.
++  // TODO: in new versions, perhaps it's OK to keep the original code here.
+ 
+   if (hs->min_version < TLS1_3_VERSION && type != ssl_client_hello_inner) {
+     bool any_enabled = false;
+@@ -522,8 +508,9 @@
+     hs->early_data_offered = true;
+   }
+ 
++  // curl-impersonate: set extension orders
+   if (!ssl_setup_key_shares(hs, /*override_group_id=*/0) ||
+-      !ssl_setup_extension_permutation(hs) ||
++      !ssl_setup_extension_permutation(hs) || !ssl_set_extension_order(hs) ||
+       !ssl_encrypt_client_hello(hs, MakeConstSpan(ech_enc, ech_enc_len)) ||
+       !ssl_add_client_hello(hs)) {
+     return ssl_hs_error;
+@@ -1384,7 +1371,9 @@
+                                        : key_usage_digital_signature;
+     if (hs->config->enforce_rsa_key_usage ||
+         EVP_PKEY_id(hs->peer_pubkey.get()) != EVP_PKEY_RSA) {
+-      if (!ssl_cert_check_key_usage(&leaf_cbs, intended_use)) {
++      // curl-impersonate: optionally disable ssl key usage check
++      if (hs->config->key_usage_check_enabled &&
++          !ssl_cert_check_key_usage(&leaf_cbs, intended_use)) {
+         return ssl_hs_error;
+       }
+     }
