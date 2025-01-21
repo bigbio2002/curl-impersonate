@@ -153,6 +153,7 @@ You may also need the [forked and patched](https://github.com/lexiforest/borings
 
 - Special thanks to @bjia56 for making cross compiling possible.
 - Special thanks to @smaug2309 and @afulsamet for bring back the Windows build.
+- Special thanks to @penumbra-x for the boringssl patch on firefox.
 
 ## Sponsors
 
