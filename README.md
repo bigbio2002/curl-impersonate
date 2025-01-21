@@ -5,15 +5,17 @@
 
 > [!NOTE]
 > This is a (slightly) more active fork of [curl-impersonate](https://github.com/lwthiker/curl-impersonate).
-> Differences include:
+> With the following enhancements:
 >
 > 1. Encrypted Client Hello(ECH) support introduced in Chrome 119.
 > 2. ZSTD compression support introduced in Chrome 123.
-> 3. X25519Kyber768 curve introduced in Chrome 124.
-> 4. More options for impersonation Akamai http/2 fingerprints, especially for Safari.
+> 3. X25519Kyber768/X25519MLKEM curves introduced in Chrome 124 and 130.
+> 4. More options for impersonating Akamai http/2 fingerprints, especially for Safari.
 > 5. Upgrade to more recent version of curl, 8.7.1 as of April, 2024.
 > 6. Ability to change extension orders and enable/disable TLS grease.
 > 7. Single binary to support Chrome, Safari and Firefox.
+> 8. (In progress) Built with http/3 enabled.
+> 9. A user-friendly Python binding: [curl_cffi](https://github.com/lexiforest/curl_cffi).
 
 A special build of [curl](https://github.com/curl/curl) that can impersonate the four
 major browsers: Chrome, Edge, Safari and Firefox. `curl-impersonate` is able to perform
@@ -21,7 +23,7 @@ TLS and HTTP handshakes that are identical to that of a real browser.
 
 `curl-impersonate` can be used either as a command line tool, similar to the regular
 curl, or as a library that can be integrated instead of the regular libcurl. See
-[Usage](#Basic-usage) below.
+[Usage](#basic-usage) below.
 
 ## Why?
 
@@ -56,7 +58,7 @@ The modifications that were needed to make this work:
 
 The resulting curl looks, from a network perspective, identical to a real browser.
 
-Read the full technical description in the blog posts: [part a](https://lwthiker.com/reversing/2022/02/17/curl-impersonate-firefox.html), [part b](https://lwthiker.com/reversing/2022/02/20/impersonating-chrome-too.html).
+Read the original technical description in the blog posts: [part a](https://lwthiker.com/reversing/2022/02/17/curl-impersonate-firefox.html), [part b](https://lwthiker.com/reversing/2022/02/20/impersonating-chrome-too.html). Much more has been added since then, but you get the general ideas :P.
 
 ## Supported browsers
 
@@ -97,6 +99,11 @@ Notes:
 
 ~~This list is also available in the [browsers.json](browsers.json) file.()~~ Needs to be updated.
 
+## Install
+
+The simplest way is to download the prebuilt binaries from the [release page](https://github.com/lexiforest/curl-impersonate/releases).
+If you want to build by yourself, please refer to the [INSTALL.md](INSTALL.md) and [docs/install.md](docs/02_install.md).
+
 ## Basic usage
 
 For each supported browser there is a wrapper script that launches `curl-impersonate` with all the needed headers and flags. For example:
@@ -106,22 +113,18 @@ For each supported browser there is a wrapper script that launches `curl-imperso
 You can add command line flags and they will be passed on to curl. However, some flags
 change curl's TLS signature which may cause it to be detected.
 
+To check the fingerprints are correct:
+
+    curl_firefox133 https://tls.browserleaks.com/json
+
 Please note that the wrapper scripts use a default set of HTTP headers. If you want to
 change these headers, you may want to modify the wrapper scripts to fit your own purpose.
 
-See [Advanced usage](#Advanced-usage) for more options, including using `libcurl-impersonate` as a library.
+See the [docs](docs) for more options, including using `libcurl-impersonate` as a library.
 
 ## Documentation
 
-More documentation is available in the [docs/](docs/README.md) directory.
-
-## Install
-
-See [docs](docs/02_install.md) directory.
-
-## Advanced usage
-
-### libcurl-impersonate
+More documentation is available in the [docs/](docs/) directory.
 
 ## Repository Contents
 
@@ -131,7 +134,7 @@ This repository contains these folders:
     * [curl-impersonate.patch](chrome/patches/curl-impersonate.patch) - The main patch that makes curl use the same TLS extensions as Firefox. Also makes curl compile statically with libnghttp2.
     * [boringssl.patch](chrome/patches/boringssl.patch) - The boringssl patch that tweaks boringssl behaviors.
 * [win](win) - Scripts for building the Windows version of `curl-impersonate`, which is quite different from `*nix`.
-* [zigshim](zigshim) - We use the awesome `zig` toolchain to bring `curl-impersonate` to more archs on Linux. Special thanks to @bjia56 for making it possible.
+* [zigshim](zigshim) - We use the awesome `zig` toolchain to bring `curl-impersonate` to more archs on Linux.
 * [docker](docker) - Debian and alpine dockerfiles for this project.
 
 Other files of interest:
@@ -145,6 +148,11 @@ If you'd like to help, please check out the [open issues in the origional repo](
 This repository contains the build process for `curl-impersonate`. The actual patches to `curl` are maintained in a [separate repository](https://github.com/lexiforest/curl) forked from lwthiker's fork of the upstream curl. The changes are maintained in the [impersonate-firefox](https://github.com/lexiforest/curl/tree/impersonate-firefox) and [impersonate-chrome](https://github.com/lexiforest/curl/tree/impersonate-chrome) branches.
 
 You may also need the [forked and patched](https://github.com/lexiforest/boringssl) BoringSSL.
+
+## Acknowledgements
+
+- Special thanks to @bjia56 for making cross compiling possible.
+- Special thanks to @smaug2309 and @afulsamet for bring back the Windows build.
 
 ## Sponsors
 
