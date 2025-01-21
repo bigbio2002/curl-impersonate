@@ -25,7 +25,7 @@ sudo apt install zstd libzstd-dev
 Clone this repository:
 
 ```sh
-git clone https://github.com/yifeikong/curl-impersonate.git
+git clone https://github.com/lexiforest/curl-impersonate.git
 cd curl-impersonate
 ```
 
@@ -94,7 +94,7 @@ brew install go
 Clone this repository:
 
 ```sh
-git clone https://github.com/yifeikong/curl-impersonate.git
+git clone https://github.com/lexiforest/curl-impersonate.git
 cd curl-impersonate
 ```
 
