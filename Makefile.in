@@ -296,15 +296,15 @@ $(CURL_VERSION)/.chrome: $(chrome_libs) $(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 	  if test -n "$(with_ca_path)"; then \
 	    config_flags="$$config_flags --with-ca-path=$(with_ca_path)"; \
 	  fi; \
-	  add_libs="-lcrypto -lssl -lstdc++"; \
+	  add_libs="-lssl -lcrypto -lstdc++"; \
 	}
 
 	echo "Configuring curl with: $$config_flags"
 
 	#CXXFLAGS="-stdlib=libc++" LDFLAGS="-lc++"
 	CC="$(CC)" CXX="$(CXX)" \
-	CPPFLAGS="$(CPPFLAGS) -I$(boringssl_dir)/include -pthread" \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+	CPPFLAGS="$(CPPFLAGS) -I$(boringssl_dir)/include" \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) -pthread" \
 		./configure $$config_flags \
 		LIBS="$$add_libs"
 
