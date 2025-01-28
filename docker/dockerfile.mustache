@@ -58,7 +58,12 @@ RUN curl -L https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION
     tar xf brotli-${BROTLI_VERSION}.tar.gz
 RUN cd brotli-${BROTLI_VERSION} && \
     mkdir build && cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_SYSTEM_NAME=Linux \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DCMAKE_INSTALL_PREFIX=./installed \
+	-DCMAKE_INSTALL_LIBDIR=lib \
+	.. && \
     cmake --build . --config Release --target install
 
 # BoringSSL doesn't have versions. Choose a commit that is used in a stable
@@ -75,8 +80,12 @@ RUN cd boringssl && \
     for p in $(ls boringssl.patch); do patch -p1 < $p; done && \
     mkdir build && cd build && \
     cmake \
-        -DCMAKE_C_FLAGS="-Wno-error=array-bounds -Wno-error=stringop-overflow" \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=on -GNinja .. && \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_FLAGS="-Wno-unknown-warning-option -Wno-error=stringop-overflow -Wno-error=array-bounds -Wno-error=maybe-uninitialized -Wno-error=unused-function" \
+	-DCMAKE_SYSTEM_NAME=Linux \
+	-DCMAKE_POSITION_INDEPENDENT_CODE=on \
+	-GNinja \
+	.. && \
     ninja
 
 # Fix the directory structure so that curl can compile against it.
@@ -95,7 +104,7 @@ RUN tar xf ${NGHTTP2_VERSION}.tar.bz2
 
 # Compile nghttp2
 RUN cd ${NGHTTP2_VERSION} && \
-    ./configure --prefix=/build/${NGHTTP2_VERSION}/installed --with-pic --disable-shared && \
+    ./configure --prefix=/build/${NGHTTP2_VERSION}/installed --with-pic --enable-lib-only --disable-shared --disable-python-bindings && \
     make && make install
 
 # Download curl.
@@ -115,19 +124,20 @@ RUN cd ${CURL_VERSION} && \
 # Enable keylogfile for debugging of TLS traffic.
 RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
-                --enable-static \
-                --disable-shared \
-                --enable-websockets \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
-		--with-zlib \
-                --with-zstd \
+                --with-openssl=/build/boringssl/build \
+                --enable-websockets \
                 --enable-ech \
 		--enable-ipv6 \
-                --with-openssl=/build/boringssl/build \
-                LIBS="-pthread" \
-                CPPFLAGS="-I/build/boringssl/build" \
-                USE_CURL_SSLKEYLOGFILE=true && \
+                USE_CURL_SSLKEYLOGFILE=true \
+                --enable-static \
+                --disable-shared \
+		--with-zlib \
+                --with-zstd \
+                CPPFLAGS="-I/build/boringssl/build/include" \
+		LDFLAGS="-L/build/boringssl/build/lib -pthread" \
+                LIBS="-lssl -lcrypto -lstdc++" && \
     make && make install
 
 RUN mkdir out && \
@@ -151,14 +161,16 @@ RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
-		--with-zlib \
-                --with-zstd \
+                --with-openssl=/build/boringssl/build \
+                --enable-websockets \
                 --enable-ech \
 		--enable-ipv6 \
-                --with-openssl=/build/boringssl/build \
-                LIBS="-pthread" \
-                CPPFLAGS="-I/build/boringssl/build" \
-                USE_CURL_SSLKEYLOGFILE=true && \
+                USE_CURL_SSLKEYLOGFILE=true \
+		--with-zlib \
+                --with-zstd \
+                CPPFLAGS="-I/build/boringssl/build/include" \
+                LDFLAGS="-L/build/boringssl/build/lib -pthread" \
+                LIBS="-lssl -lcrypto -lstdc++" && \
     make clean && make && make install
 
 # Copy libcurl-impersonate and symbolic links

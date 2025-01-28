@@ -149,7 +149,7 @@ The Docker build is a bit more reproducible and serves as the reference implemen
 [`chrome/Dockerfile`](chrome/Dockerfile) is a debian-based Dockerfile that will build curl with all the necessary modifications and patches. Build it like the following:
 
 ```sh
-docker build -t curl-impersonate-chrome chrome/
+docker build -f docker/debian.dockerfile -t curl-impersonate-chrome chrome/
 ```
 
 The resulting binaries and libraries are in the `/usr/local` directory, which contains:

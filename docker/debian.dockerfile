@@ -8,11 +8,12 @@
 # Use it as a common base.
 FROM python:3.11-slim-bookworm as builder
 
+
 WORKDIR /build
 
 # Common dependencies
 RUN apt-get update && \
-    apt-get install -y git ninja-build cmake curl zlib1g-dev
+    apt-get install -y git ninja-build cmake curl zlib1g-dev zstd libzstd-dev
 
 # The following are needed because we are going to change some autoconf scripts,
 # both for libnghttp2 and curl.
@@ -33,12 +34,17 @@ RUN curl -L https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION
     tar xf brotli-${BROTLI_VERSION}.tar.gz
 RUN cd brotli-${BROTLI_VERSION} && \
     mkdir build && cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_SYSTEM_NAME=Linux \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DCMAKE_INSTALL_PREFIX=./installed \
+	-DCMAKE_INSTALL_LIBDIR=lib \
+	.. && \
     cmake --build . --config Release --target install
 
 # BoringSSL doesn't have versions. Choose a commit that is used in a stable
 # Chromium version.
-ARG BORING_SSL_COMMIT=d24a38200fef19150eef00cad35b138936c08767
+ARG BORING_SSL_COMMIT=cd95210465496ac2337b313cf49f607762abe286
 RUN curl -L https://github.com/google/boringssl/archive/${BORING_SSL_COMMIT}.zip -o boringssl.zip && \
     unzip boringssl && \
     mv boringssl-${BORING_SSL_COMMIT} boringssl
@@ -47,11 +53,15 @@ RUN curl -L https://github.com/google/boringssl/archive/${BORING_SSL_COMMIT}.zip
 # See https://boringssl.googlesource.com/boringssl/+/HEAD/BUILDING.md
 COPY patches/boringssl.patch boringssl/
 RUN cd boringssl && \
-    for p in $(ls boringssl-*.patch); do patch -p1 < $p; done && \
+    for p in $(ls boringssl.patch); do patch -p1 < $p; done && \
     mkdir build && cd build && \
     cmake \
-        -DCMAKE_C_FLAGS="-Wno-error=array-bounds -Wno-error=stringop-overflow" \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=on -GNinja .. && \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_FLAGS="-Wno-unknown-warning-option -Wno-error=stringop-overflow -Wno-error=array-bounds -Wno-error=maybe-uninitialized -Wno-error=unused-function" \
+	-DCMAKE_SYSTEM_NAME=Linux \
+	-DCMAKE_POSITION_INDEPENDENT_CODE=on \
+	-GNinja \
+	.. && \
     ninja
 
 # Fix the directory structure so that curl can compile against it.
@@ -70,13 +80,15 @@ RUN tar xf ${NGHTTP2_VERSION}.tar.bz2
 
 # Compile nghttp2
 RUN cd ${NGHTTP2_VERSION} && \
-    ./configure --prefix=/build/${NGHTTP2_VERSION}/installed --with-pic --disable-shared && \
+    ./configure --prefix=/build/${NGHTTP2_VERSION}/installed --with-pic --enable-lib-only --disable-shared --disable-python-bindings && \
     make && make install
 
 # Download curl.
-ARG CURL_VERSION=curl-8.7.1
-RUN curl -o ${CURL_VERSION}.tar.xz https://curl.se/download/${CURL_VERSION}.tar.xz
-RUN tar xf ${CURL_VERSION}.tar.xz
+ARG CURL_VERSION=curl-8_7_1
+RUN curl -o ${CURL_VERSION}.tar.gz -L https://github.com/curl/curl/archive/${CURL_VERSION}.tar.gz
+RUN rm -Rf ${CURL_VERSION} && \
+    tar xf ${CURL_VERSION}.tar.gz && \
+    mv curl-${CURL_VERSION} ${CURL_VERSION}
 
 # Patch curl and re-generate the configure script
 COPY patches/curl-*.patch ${CURL_VERSION}/
@@ -88,17 +100,20 @@ RUN cd ${CURL_VERSION} && \
 # Enable keylogfile for debugging of TLS traffic.
 RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
-                --enable-static \
-                --disable-shared \
-                --enable-websockets \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
-                --with-zstd \
-                --enable-ech \
                 --with-openssl=/build/boringssl/build \
-                LIBS="-pthread" \
-                CFLAGS="-I/build/boringssl/build" \
-                USE_CURL_SSLKEYLOGFILE=true && \
+                --enable-websockets \
+                --enable-ech \
+		--enable-ipv6 \
+                USE_CURL_SSLKEYLOGFILE=true \
+                --enable-static \
+                --disable-shared \
+		--with-zlib \
+                --with-zstd \
+                CPPFLAGS="-I/build/boringssl/build/include" \
+		LDFLAGS="-L/build/boringssl/build/lib -pthread" \
+                LIBS="-lssl -lcrypto -lstdc++" && \
     make && make install
 
 RUN mkdir out && \
@@ -122,12 +137,16 @@ RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
-                --with-zstd \
-                --enable-ech \
                 --with-openssl=/build/boringssl/build \
-                LIBS="-pthread" \
-                CFLAGS="-I/build/boringssl/build" \
-                USE_CURL_SSLKEYLOGFILE=true && \
+                --enable-websockets \
+                --enable-ech \
+		--enable-ipv6 \
+                USE_CURL_SSLKEYLOGFILE=true \
+		--with-zlib \
+                --with-zstd \
+                CPPFLAGS="-I/build/boringssl/build/include" \
+                LDFLAGS="-L/build/boringssl/build/lib -pthread" \
+                LIBS="-lssl -lcrypto -lstdc++" && \
     make clean && make && make install
 
 # Copy libcurl-impersonate and symbolic links
@@ -147,8 +166,7 @@ RUN ! (ldd ./out/curl-impersonate | grep -q -e nghttp2 -e brotli -e ssl -e crypt
 COPY curl_chrome* curl_edge* curl_safari* out/
 RUN chmod +x out/curl_*
 
-# Create a final, minimal image with the compiled binaries
-# only.
+# Create a final, minimal image with the compiled binaries only.
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates \
     && rm -rf /var/lib/apt/lists/*
