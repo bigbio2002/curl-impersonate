@@ -124,7 +124,7 @@ index 60301885a..4440c3bcb 100644
  #define TLSEXT_MAXLEN_host_name 255
  
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index c9424c98b..ea76ca366 100644
+index c9424c98b..94018649f 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -2219,7 +2219,15 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
@@ -328,7 +328,7 @@ index c9424c98b..ea76ca366 100644
    hs->extension_permutation = std::move(permutation);
    return true;
  }
-@@ -3379,6 +3476,50 @@ static const struct tls_extension *tls_extension_find(uint32_t *out_index,
+@@ -3379,6 +3476,43 @@ static const struct tls_extension *tls_extension_find(uint32_t *out_index,
    return NULL;
  }
  
@@ -359,17 +359,10 @@ index c9424c98b..ea76ca366 100644
 +  while (ext != nullptr) {
 +    unsigned ext_index = 0;
 +    tls_extension_find(&ext_index, atoi(ext));
-+    // fprintf(stderr, "found %d -> %d, ", atoi(ext), ext_index);
 +    order[idx] = ext_index;
 +    ext = strtok(NULL, delimiter);
 +    idx++;
 +  }
-+  // fprintf(stderr, "\n");
-+  // fprintf(stderr, "the order is set to:");
-+  // for (size_t i = 0; i < kNumExtensions; i++) {
-+  //   fprintf(stderr, "%d, ", order[i]);
-+  // }
-+  // fprintf(stderr, "\n");
 +  free(tmp);
 +
 +  hs->extension_permutation = std::move(order);
@@ -379,7 +372,7 @@ index c9424c98b..ea76ca366 100644
  static bool add_padding_extension(CBB *cbb, uint16_t ext, size_t len) {
    CBB child;
    if (!CBB_add_u16(cbb, ext) ||  //
-@@ -3425,6 +3566,9 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
+@@ -3425,6 +3559,9 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
@@ -389,7 +382,7 @@ index c9424c98b..ea76ca366 100644
      const size_t len_before = CBB_len(&extensions);
      const size_t len_compressed_before = CBB_len(compressed.get());
      if (!kExtensions[i].add_clienthello(hs, &extensions, compressed.get(),
-@@ -3534,6 +3678,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+@@ -3534,6 +3671,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
