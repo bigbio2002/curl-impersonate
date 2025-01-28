@@ -57,6 +57,12 @@ ASMFLAGS = @ASMFLAGS@
 LDFLAGS = @LDFLAGS@
 STRIP = @STRIP@
 
+ifneq '' '$(findstring gcc,$(CC))'
+	CXXSTDLIB = -lstdc++
+else ifneq '' '$(findstring clang,$(CC))'
+	CXXSTDLIB = -lc++
+endif
+
 # Auto-generate Makefile help.
 # Borrowed from https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help: ## Show this help message
@@ -88,7 +94,7 @@ chrome-install: ## Install the Chrome version of curl-impersonate after build
 	cd $(CURL_VERSION)
 	$(MAKE) install-exec MAKEFLAGS=
 	# Wrapper scripts for the Chrome version (e.g. 'curl_chrome99')
-	install $(srcdir)/chrome/curl_* @bindir@
+	install $(srcdir)/chrome/curl_* $(DESTDIR)@bindir@
 .PHONY: chrome-install
 
 chrome-install-strip: ## Like 'chrome-install', but strip binaries for smaller size
@@ -96,15 +102,15 @@ chrome-install-strip: ## Like 'chrome-install', but strip binaries for smaller s
 	$(MAKE) install-exec MAKEFLAGS=
 	# We could have used 'install-strip' but then the docs would be installed as well.
 	# Instead strip manually.
-	$(STRIP) @bindir@/curl-impersonate-chrome
+	$(STRIP) $(DESTDIR)@bindir@/curl-impersonate-chrome
 	# Wrapper scripts for the Chrome version (e.g. 'curl_chrome99')
-	install $(srcdir)/chrome/curl_chrome* $(srcdir)/chrome/curl_edge* $(srcdir)/chrome/curl_safari* @bindir@
+	install $(srcdir)/chrome/curl_chrome* $(srcdir)/chrome/curl_edge* $(srcdir)/chrome/curl_safari* $(DESTDIR)@bindir@
 .PHONY: chrome-install-strip
 
 chrome-uninstall: ## Uninstall the Chrome version of curl-impersonate after 'make install'
 	cd $(CURL_VERSION)
 	$(MAKE) uninstall MAKEFLAGS=
-	rm -Rf @bindir@/curl_chrome* @bindir@/curl_edge* @bindir@/curl_safari*
+	rm -Rf $(DESTDIR)@bindir@/curl_chrome* $(DESTDIR)@bindir@/curl_edge* $(DESTDIR)@bindir@/curl_safari*
 .PHONY: chrome-uninstall
 
 chrome-clean: ## Clean build artifacts of the Chrome version. Use after re-running './configure'
@@ -296,15 +302,15 @@ $(CURL_VERSION)/.chrome: $(chrome_libs) $(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 	  if test -n "$(with_ca_path)"; then \
 	    config_flags="$$config_flags --with-ca-path=$(with_ca_path)"; \
 	  fi; \
-	  add_libs="-lssl -lcrypto -lstdc++"; \
+	  add_libs="-lssl -lcrypto $(CXXSTDLIB)"; \
 	}
 
 	echo "Configuring curl with: $$config_flags"
 
 	#CXXFLAGS="-stdlib=libc++" LDFLAGS="-lc++"
-	CC="$(CC)" CXX="$(CXX)" \
-	CPPFLAGS="$(CPPFLAGS) -I$(boringssl_dir)/include" \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) -pthread" \
+	CC="$(CC)" CFLAGS="$(CFLAGS)" \
+	CPPFLAGS="-I$(boringssl_dir)/include $(CPPFLAGS)" \
+	LDFLAGS="-L$(boringssl_dir)/lib $(LDFLAGS) -pthread" \
 		./configure $$config_flags \
 		LIBS="$$add_libs"
 
