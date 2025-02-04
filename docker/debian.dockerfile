@@ -6,7 +6,7 @@
 #
 
 # Use it as a common base.
-FROM python:3.11-slim-bookworm as builder
+FROM python:3.11-slim-bookworm AS builder
 
 
 WORKDIR /build
@@ -62,7 +62,7 @@ RUN cd boringssl && \
 	-DCMAKE_POSITION_INDEPENDENT_CODE=on \
 	-GNinja \
 	.. && \
-    ninja
+    ninja -j1
 
 # Fix the directory structure so that curl can compile against it.
 # See https://everything.curl.dev/source/build/tls/boringssl
@@ -71,16 +71,16 @@ RUN mkdir boringssl/build/lib && \
     ln -s ../ssl/libssl.a boringssl/build/lib/libssl.a && \
     cp -R boringssl/include boringssl/build
 
-ARG NGHTTP2_VERSION=nghttp2-1.63.0
+ARG NGHTTP2_VERSION=1.63.0
 ARG NGHTTP2_URL=https://github.com/nghttp2/nghttp2/releases/download/v1.63.0/nghttp2-1.63.0.tar.bz2
 
 # Download nghttp2 for HTTP/2.0 support.
-RUN curl -o ${NGHTTP2_VERSION}.tar.bz2 -L ${NGHTTP2_URL}
-RUN tar xf ${NGHTTP2_VERSION}.tar.bz2
+RUN curl -o nghttp2-${NGHTTP2_VERSION}.tar.bz2 -L ${NGHTTP2_URL}
+RUN tar xf nghttp2-${NGHTTP2_VERSION}.tar.bz2
 
 # Compile nghttp2
-RUN cd ${NGHTTP2_VERSION} && \
-    ./configure --prefix=/build/${NGHTTP2_VERSION}/installed --with-pic --enable-lib-only --disable-shared --disable-python-bindings && \
+RUN cd nghttp2-${NGHTTP2_VERSION} && \
+    ./configure --prefix=/build/nghttp2-${NGHTTP2_VERSION}/installed --with-pic --enable-lib-only --disable-shared --disable-python-bindings && \
     make && make install
 
 # Download curl.
@@ -100,19 +100,19 @@ RUN cd ${CURL_VERSION} && \
 # Enable keylogfile for debugging of TLS traffic.
 RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
-                --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
+                --with-nghttp2=/build/nghttp2-${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
                 --with-openssl=/build/boringssl/build \
                 --enable-websockets \
                 --enable-ech \
-		--enable-ipv6 \
+                --enable-ipv6 \
                 USE_CURL_SSLKEYLOGFILE=true \
                 --enable-static \
                 --disable-shared \
-		--with-zlib \
+                --with-zlib \
                 --with-zstd \
                 CPPFLAGS="-I/build/boringssl/build/include" \
-		LDFLAGS="-L/build/boringssl/build/lib -pthread" \
+                LDFLAGS="-L/build/boringssl/build/lib -pthread" \
                 LIBS="-lssl -lcrypto -lstdc++" && \
     make && make install
 
@@ -135,14 +135,14 @@ RUN rm -Rf /build/install
 # Re-compile libcurl dynamically
 RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
-                --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
+                --with-nghttp2=/build/nghttp2-${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
                 --with-openssl=/build/boringssl/build \
                 --enable-websockets \
                 --enable-ech \
-		--enable-ipv6 \
+                --enable-ipv6 \
                 USE_CURL_SSLKEYLOGFILE=true \
-		--with-zlib \
+                --with-zlib \
                 --with-zstd \
                 CPPFLAGS="-I/build/boringssl/build/include" \
                 LDFLAGS="-L/build/boringssl/build/lib -pthread" \
