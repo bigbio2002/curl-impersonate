@@ -11,7 +11,7 @@ SUBJOBS := 1
 
 BROTLI_VERSION := 1.1.0
  # In case this is changed, update build-and-test-make.yml as well
-BORING_SSL_COMMIT := cd95210465496ac2337b313cf49f607762abe286
+BORING_SSL_COMMIT := 23768dca563c4e62d48bb3675e49e34955dced12
 NGHTTP2_VERSION := 1.63.0
 NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.bz2
 CURL_VERSION := curl-8_7_1
