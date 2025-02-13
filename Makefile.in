@@ -14,7 +14,7 @@ BROTLI_VERSION := 1.1.0
 BORING_SSL_COMMIT := 23768dca563c4e62d48bb3675e49e34955dced12
 NGHTTP2_VERSION := 1.63.0
 NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.bz2
-CURL_VERSION := curl-8_7_1
+CURL_VERSION := 8_7_1
 
 # https://github.com/google/brotli/commit/641bec0e30bea648b3da1cd90fc6b44deb429f71
 brotli_install_dir := $(abspath brotli-$(BROTLI_VERSION)/out/installed)
@@ -70,15 +70,15 @@ help: ## Show this help message
 .PHONY: help
 .DEFAULT_GOAL := help
 
-chrome-build: $(CURL_VERSION)/.chrome ## Build the Chrome version of curl-impersonate
-	cd $(CURL_VERSION)
+chrome-build: curl-$(CURL_VERSION)/.chrome ## Build the Chrome version of curl-impersonate
+	cd curl-$(CURL_VERSION)
 	# Don't pass this Makefile's MAKEFLAGS
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 .PHONY: chrome-build
 
 chrome-checkbuild: ## Run basic checks on the built binary
 ifeq ($(host),$(build))
-	cd $(CURL_VERSION)
+	cd curl-$(CURL_VERSION)
 	# Make sure all needed features were compiled in
 	./src/curl-impersonate-chrome -V | grep -q zlib
 	./src/curl-impersonate-chrome -V | grep -q brotli
@@ -91,14 +91,14 @@ endif
 .PHONY: chrome-checkbuild
 
 chrome-install: ## Install the Chrome version of curl-impersonate after build
-	cd $(CURL_VERSION)
+	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec MAKEFLAGS=
 	# Wrapper scripts for the Chrome version (e.g. 'curl_chrome99')
 	install $(srcdir)/chrome/curl_* $(DESTDIR)@bindir@
 .PHONY: chrome-install
 
 chrome-install-strip: ## Like 'chrome-install', but strip binaries for smaller size
-	cd $(CURL_VERSION)
+	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec MAKEFLAGS=
 	# We could have used 'install-strip' but then the docs would be installed as well.
 	# Instead strip manually.
@@ -108,13 +108,13 @@ chrome-install-strip: ## Like 'chrome-install', but strip binaries for smaller s
 .PHONY: chrome-install-strip
 
 chrome-uninstall: ## Uninstall the Chrome version of curl-impersonate after 'make install'
-	cd $(CURL_VERSION)
+	cd curl-$(CURL_VERSION)
 	$(MAKE) uninstall MAKEFLAGS=
 	rm -Rf $(DESTDIR)@bindir@/curl_chrome* $(DESTDIR)@bindir@/curl_edge* $(DESTDIR)@bindir@/curl_safari*
 .PHONY: chrome-uninstall
 
 chrome-clean: ## Clean build artifacts of the Chrome version. Use after re-running './configure'
-	cd $(CURL_VERSION)
+	cd curl-$(CURL_VERSION)
 	$(MAKE) clean MAKEFLAGS=
 	rm -f .chrome
 .PHONY: chrome-clean
@@ -123,7 +123,7 @@ clean: ## Remove all build artifacts, including dependencies
 	rm -Rf brotli-$(BROTLI_VERSION).tar.gz brotli-$(BROTLI_VERSION)
 	rm -Rf boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_SSL_COMMIT)
 	rm -Rf nghttp2-$(NGHTTP2_VERSION).tar.bz2 nghttp2-$(NGHTTP2_VERSION)
-	rm -Rf $(CURL_VERSION).tar.gz $(CURL_VERSION)
+	rm -Rf curl-$(CURL_VERSION).tar.gz curl-$(CURL_VERSION)
 
 brotli-$(BROTLI_VERSION).tar.gz:
 	curl -L "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" \
@@ -247,24 +247,24 @@ $(nghttp2_static_libs): nghttp2-$(NGHTTP2_VERSION).tar.bz2
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
-$(CURL_VERSION).tar.gz:
-	curl -L "https://github.com/curl/curl/archive/$(CURL_VERSION).tar.gz" \
-		-o $(CURL_VERSION).tar.gz
+curl-$(CURL_VERSION).tar.gz:
+	curl -L "https://github.com/curl/curl/archive/curl-$(CURL_VERSION).tar.gz" \
+		-o curl-$(CURL_VERSION).tar.gz
 
 # Apply the "Chorme version" patches and mark using a dummy file
-$(CURL_VERSION)/.patched-chrome: $(srcdir)/chrome/patches/curl-*.patch
-	rm -Rf $(CURL_VERSION)
-	tar -xf $(CURL_VERSION).tar.gz
-	mv curl-$(CURL_VERSION) $(CURL_VERSION)  # fix directory name
-	cd $(CURL_VERSION)
+curl-$(CURL_VERSION)/.patched-chrome: $(srcdir)/chrome/patches/curl-*.patch
+	rm -Rf curl-$(CURL_VERSION)
+	tar -xf curl-$(CURL_VERSION).tar.gz
+	mv curl-curl-$(CURL_VERSION) curl-$(CURL_VERSION)  # fix directory name
+	cd curl-$(CURL_VERSION)
 	for p in $^; do patch -p1 < $$p; done
 	# Re-generate the configure script
 	autoreconf -fi
 	touch .patched-chrome
 
 # This is a small hack that flags that curl was patched and configured in the "chrome" version
-$(CURL_VERSION)/.chrome: $(chrome_libs) $(CURL_VERSION).tar.gz $(CURL_VERSION)/.patched-chrome
-	cd $(CURL_VERSION)
+curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION).tar.gz curl-$(CURL_VERSION)/.patched-chrome
+	cd curl-$(CURL_VERSION)
 
 	# Set up the configure flags to curl.
 	# If the user provided the --host flag to our configure script
