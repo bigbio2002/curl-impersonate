@@ -121,11 +121,19 @@ chrome-clean: ## Clean build artifacts of the Chrome version. Use after re-runni
 	rm -f .chrome
 .PHONY: chrome-clean
 
-clean: ## Remove all build artifacts, including dependencies
-	rm -Rf brotli-$(BROTLI_VERSION).tar.gz brotli-$(BROTLI_VERSION)
-	rm -Rf boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_SSL_COMMIT)
-	rm -Rf nghttp2-$(NGHTTP2_VERSION).tar.bz2 nghttp2-$(NGHTTP2_VERSION)
-	rm -Rf curl-$(CURL_VERSION).tar.gz curl-$(CURL_VERSION)
+clean: chrome-clean ## Remove all build artifacts, including dependencies
+	rm -Rf brotli-$(BROTLI_VERSION)
+	rm -Rf boringssl-$(BORING_SSL_COMMIT)
+	rm -Rf nghttp2-$(NGHTTP2_VERSION)
+#	rm -Rf curl-$(CURL_VERSION)
+.PHONY: clean
+
+distclean: clean ## Remove all build artifacts, including dependencies
+	rm -f brotli-$(BROTLI_VERSION).tar.gz
+	rm -f boringssl-$(BORING_SSL_COMMIT).zip
+	rm -f nghttp2-$(NGHTTP2_VERSION).tar.bz2
+	rm -f curl-$(CURL_VERSION).tar.gz curl-$(CURL_VERSION)
+.PHONY: distclean
 
 brotli-$(BROTLI_VERSION).tar.gz:
 	curl -L "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" \
