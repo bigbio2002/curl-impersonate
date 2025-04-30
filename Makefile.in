@@ -142,8 +142,8 @@ distclean: clean ## Remove all build artifacts, including dependencies
 .PHONY: distclean
 
 brotli-$(BROTLI_VERSION).tar.gz:
-	curl -L "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" \
-		-o "brotli-${BROTLI_VERSION}.tar.gz"
+	curl -L https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz \
+		-o brotli-${BROTLI_VERSION}.tar.gz
 
 $(brotli_static_libs): brotli-$(BROTLI_VERSION).tar.gz
 	tar xf brotli-$(BROTLI_VERSION).tar.gz
@@ -242,7 +242,7 @@ nghttp2-$(NGHTTP2_VERSION).tar.bz2:
 	curl -L $(NGHTTP2_URL) -o nghttp2-$(NGHTTP2_VERSION).tar.bz2
 
 $(nghttp2_static_libs): nghttp2-$(NGHTTP2_VERSION).tar.bz2
-	tar -xf nghttp2-$(NGHTTP2_VERSION).tar.bz2
+	tar xf nghttp2-$(NGHTTP2_VERSION).tar.bz2
 	cd nghttp2-$(NGHTTP2_VERSION)
 
 	# Set up the configure flags to nghttp2.
@@ -257,17 +257,17 @@ $(nghttp2_static_libs): nghttp2-$(NGHTTP2_VERSION).tar.bz2
 		fi; \
 	}
 
-	CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
-	./configure $$config_flags
+	./configure $$config_flags \
+		CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
 ngtcp2-$(NGTCP2_VERSION).tar.bz2:
 	curl -L $(NGTCP2_URL) -o ngtcp2-$(NGTCP2_VERSION).tar.bz2
 
-$(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(boringssl_static_libs)
-	tar -xf ngtcp2-$(NGTCP2_VERSION).tar.bz2
+$(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(nghttp3_static_libs) $(boringssl_static_libs)
+	tar xf ngtcp2-$(NGTCP2_VERSION).tar.bz2
 	cd ngtcp2-$(NGTCP2_VERSION)
 	autoreconf -i
 
@@ -277,6 +277,7 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(boringssl_static_libs)
 	# PKG_CONFIG_PATH=<somewhere1>/lib/pkgconfig:<somewhere2>/lib/pkgconfig LDFLAGS="-Wl,-rpath,<somewhere1>/lib"
 	{ \
 		config_flags="--prefix=$(ngtcp2_install_dir)"; \
+		config_flags="$$config_flags --with-boringssl"; \
 		config_flags="$$config_flags --with-pic --enable-lib-only"; \
 		config_flags="$$config_flags --disable-shared --disable-python-bindings"; \
 		if test -n "$(host_alias)"; then \
@@ -284,12 +285,12 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(boringssl_static_libs)
 		fi; \
 	}
 
-	./configure PKG_CONFIG_PATH="$(nghttp3_install_dir)/lib/pkgconfig" \
+	./configure $$config_flags \
 		CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
-		BORINGSSL_LIBS="-L$(boringssl_install_dir)/ssl -lssl -L$(boringssl_install_dir)/crypto -lcrypto -lpthread" \
-		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include" --with-boringssl \
-		$$config_flags
+		PKG_CONFIG_PATH="$(nghttp3_install_dir)/lib/pkgconfig" \
+		BORINGSSL_LIBS="-L$(boringssl_dir)/lib -lssl -lcrypto" \
+		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include"
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
@@ -312,20 +313,20 @@ $(nghttp3_static_libs): nghttp3-$(NGHTTP3_VERSION).tar.bz2
 		fi; \
 	}
 
-	CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
-	./configure $$config_flags
+	./configure $$config_flags \
+		CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
 curl-$(CURL_VERSION).tar.gz:
-	curl -L "https://github.com/curl/curl/archive/curl-$(CURL_VERSION).tar.gz" \
+	curl -L https://github.com/curl/curl/archive/curl-$(CURL_VERSION).tar.gz \
 		-o curl-$(CURL_VERSION).tar.gz
 
 # Apply the "Chorme version" patches and mark using a dummy file
 curl-$(CURL_VERSION)/.patched: $(srcdir)/patches/curl.patch
 	rm -Rf curl-$(CURL_VERSION)
-	tar -xf curl-$(CURL_VERSION).tar.gz
+	tar xf curl-$(CURL_VERSION).tar.gz
 	mv curl-curl-$(CURL_VERSION) curl-$(CURL_VERSION)  # fix directory name
 	cd curl-$(CURL_VERSION)
 	for p in $^; do patch -p1 < $$p; done
@@ -354,6 +355,7 @@ curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION).tar.gz curl-$(
 	  config_flags="$$config_flags --enable-websockets"; \
 	  config_flags="$$config_flags --enable-ech"; \
 	  config_flags="$$config_flags --enable-ipv6"; \
+	  config_flags="$$config_flags --disable-docs"; \
 	  config_flags="$$config_flags USE_CURL_SSLKEYLOGFILE=true"; \
 	  if test "$(static_build)" = "yes"; then \
 	    config_flags="$$config_flags --enable-static --disable-shared"; \
@@ -383,12 +385,12 @@ curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION).tar.gz curl-$(
 	echo "Configuring curl with: $$config_flags"
 
 	#CXXFLAGS="-stdlib=libc++" LDFLAGS="-lc++ -Wl,-rpath,$(ngtcp2_install_dir)/lib" \
-	CC="$(CC)" CFLAGS="$(CFLAGS)" \
-	CPPFLAGS="-I$(boringssl_dir)/include $(CPPFLAGS)" \
-	PKG_CONFIG_PATH="$(ngtcp2_install_dir)/crypto/boringssl" \
-	LDFLAGS="-L$(boringssl_dir)/lib -L$(ngtcp2_install_dir)/lib $(LDFLAGS) -pthread" \
 	./configure $$config_flags \
-	LIBS="$$add_libs"
+		CC="$(CC)" CFLAGS="$(CFLAGS)" \
+		CPPFLAGS="-I$(boringssl_dir)/include $(CPPFLAGS)" \
+		PKG_CONFIG_PATH="$(ngtcp2_install_dir)/crypto/boringssl" \
+		LDFLAGS="-L$(boringssl_dir)/lib -L$(ngtcp2_install_dir)/lib -pthread $(LDFLAGS)" \
+		LIBS="$$add_libs"
 
 	# Remove possible leftovers from a previous compilation
 	$(MAKE) clean MAKEFLAGS=
