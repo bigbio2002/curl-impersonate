@@ -119,7 +119,7 @@ install-strip: ## Like 'install', but strip binaries for smaller size
 uninstall: ## Uninstall the Chrome version of curl-impersonate after 'make install'
 	cd curl-$(CURL_VERSION)
 	$(MAKE) uninstall MAKEFLAGS=
-	rm -Rf $(DESTDIR)@bindir@/curl_*
+	rm -f $(DESTDIR)@bindir@/curl_*
 .PHONY: uninstall
 
 clean:
@@ -257,6 +257,8 @@ $(nghttp2_static_libs): nghttp2-$(NGHTTP2_VERSION).tar.bz2
 		fi; \
 	}
 
+	CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
 	./configure $$config_flags
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
@@ -282,10 +284,11 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(boringssl_static_libs)
 		fi; \
 	}
 
-	./configure PKG_CONFIG_PATH=$(nghttp3_install_dir)/lib/pkgconfig \
+	./configure PKG_CONFIG_PATH="$(nghttp3_install_dir)/lib/pkgconfig" \
+		CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
 		BORINGSSL_LIBS="-L$(boringssl_install_dir)/ssl -lssl -L$(boringssl_install_dir)/crypto -lcrypto -lpthread" \
-		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include" \
-		--with-boringssl \
+		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include" --with-boringssl \
 		$$config_flags
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
@@ -311,7 +314,7 @@ $(nghttp3_static_libs): nghttp3-$(NGHTTP3_VERSION).tar.bz2
 
 	CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
 	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
-		./configure $$config_flags
+	./configure $$config_flags
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
@@ -382,10 +385,10 @@ curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION).tar.gz curl-$(
 	#CXXFLAGS="-stdlib=libc++" LDFLAGS="-lc++ -Wl,-rpath,$(ngtcp2_install_dir)/lib" \
 	CC="$(CC)" CFLAGS="$(CFLAGS)" \
 	CPPFLAGS="-I$(boringssl_dir)/include $(CPPFLAGS)" \
+	PKG_CONFIG_PATH="$(ngtcp2_install_dir)/crypto/boringssl" \
 	LDFLAGS="-L$(boringssl_dir)/lib -L$(ngtcp2_install_dir)/lib $(LDFLAGS) -pthread" \
-		./configure $$config_flags \
-		LIBS="$$add_libs" \
-		PKG_CONFIG_PATH="$(ngtcp2_install_dir)/crypto/boringssl/"
+	./configure $$config_flags \
+	LIBS="$$add_libs"
 
 	# Remove possible leftovers from a previous compilation
 	$(MAKE) clean MAKEFLAGS=
