@@ -187,14 +187,15 @@ boringssl-$(BORING_SSL_COMMIT).zip:
 		-o boringssl-$(BORING_SSL_COMMIT).zip
 
 # Patch boringssl and use a dummy '.patched' file to mark it patched
-boringssl-$(BORING_SSL_COMMIT)/.patched: $(srcdir)/patches/boringssl.patch
+boringssl-$(BORING_SSL_COMMIT)/.patched: boringssl-$(BORING_SSL_COMMIT).zip $(srcdir)/patches/boringssl.patch
 	unzip -q -o boringssl-$(BORING_SSL_COMMIT).zip
 	# mv boringssl boringssl-$(BORING_SSL_COMMIT)
 	cd boringssl-$(BORING_SSL_COMMIT)/
-	for p in $^; do patch -p1 < $$p; done
+	patch -p1 < $(srcdir)/patches/boringssl.patch
+	#for p in $^; do patch -p1 < $$p; done
 	touch .patched
 
-$(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_SSL_COMMIT)/.patched
+$(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT)/.patched
 	mkdir -p $(boringssl_install_dir)
 	cd $(boringssl_install_dir)
 
@@ -279,7 +280,7 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(nghttp3_static_libs) $
 		config_flags="--prefix=$(ngtcp2_install_dir)"; \
 		config_flags="$$config_flags --with-boringssl"; \
 		config_flags="$$config_flags --with-pic --enable-lib-only"; \
-		config_flags="$$config_flags --disable-shared --disable-python-bindings"; \
+		config_flags="$$config_flags --disable-shared"; \
 		if test -n "$(host_alias)"; then \
 			config_flags="$$config_flags --host=$(host_alias)"; \
 		fi; \
@@ -287,7 +288,7 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(nghttp3_static_libs) $
 
 	./configure $$config_flags \
 		CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
-		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) -pthread" \
 		PKG_CONFIG_PATH="$(nghttp3_install_dir)/lib/pkgconfig" \
 		BORINGSSL_LIBS="-L$(boringssl_dir)/lib -lssl -lcrypto" \
 		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include"
@@ -324,18 +325,19 @@ curl-$(CURL_VERSION).tar.gz:
 		-o curl-$(CURL_VERSION).tar.gz
 
 # Apply the "Chorme version" patches and mark using a dummy file
-curl-$(CURL_VERSION)/.patched: $(srcdir)/patches/curl.patch
+curl-$(CURL_VERSION)/.patched: curl-$(CURL_VERSION).tar.gz $(srcdir)/patches/curl.patch
 	rm -Rf curl-$(CURL_VERSION)
 	tar xf curl-$(CURL_VERSION).tar.gz
 	mv curl-curl-$(CURL_VERSION) curl-$(CURL_VERSION)  # fix directory name
-	cd curl-$(CURL_VERSION)
-	for p in $^; do patch -p1 < $$p; done
+	cd curl-$(CURL_VERSION)/
+	patch -p1 < $(srcdir)/patches/curl.patch
+	#for p in $^; do patch -p1 < $$p; done
 	# Re-generate the configure script
 	autoreconf -fi
 	touch .patched
 
 # This is a small hack that flags that curl was patched and configured in the "chrome" version
-curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION).tar.gz curl-$(CURL_VERSION)/.patched
+curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION)/.patched
 	cd curl-$(CURL_VERSION)
 
 	# Set up the configure flags to curl.
