@@ -19,8 +19,10 @@ env:
   ZSTD_COMMIT: 794ea1b0afca0f020f4e57b6732332231fb23c70
   BROTLI_COMMIT: ed738e842d2fbdf2d6459e39267a633c4a9b2f5d
   BORINGSSL_COMMIT: 673e61fc215b178a90c0e67858bbf162c8158993
-  CURL_COMMIT: de7b3e89218467159a7af72d58cea8425946e97d
+  CURL_TAG: curl-8_13_0  # using tags is less secure, but easier to maintain
   NGHTTP2_COMMIT: 8f44147c385fb1ed93a6f39911eeb30279bfd2dd
+  NGHTTP3_TAG: v1.9.0
+  NGTCP2_TAG: v1.11.0
 
 jobs:
   build-windows:
@@ -57,7 +59,6 @@ jobs:
 
       # - name: Setup tmate session for debugging
       #   uses: mxschmitt/action-tmate@v3
-      #
 
       - name: Build
         shell: cmd

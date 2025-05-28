@@ -229,8 +229,10 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT)/.patched
 		-DCMAKE_SYSTEM_NAME=$$system_name \
 		-DCMAKE_SYSTEM_PROCESSOR=$(host_cpu) \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=on \
+		-DBUILD_TESTING=OFF \
 		-GNinja \
 		..
+
 	@ninja@ -j$(SUBJOBS)
 
 	# Fix the directory structure so that curl can compile against it.
