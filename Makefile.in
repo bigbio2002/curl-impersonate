@@ -222,14 +222,13 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT)/.patched
 	@cmake@ -DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_C_COMPILER="$(CC)" \
 		-DCMAKE_CXX_COMPILER="$(CXX)" \
-		-DCMAKE_C_FLAGS="$(CFLAGS) $(CPPFLAGS) -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined -Wno-error=maybe-uninitialized -Wno-error=unused-function" \
-		-DCMAKE_CXX_FLAGS="$(CXXFLAGS) $(CPPFLAGS) -Wno-macro-redefined" \
+		-DCMAKE_C_FLAGS="-Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined -Wno-error=maybe-uninitialized -Wno-error=unused-function $(CFLAGS) $(CPPFLAGS)" \
+		-DCMAKE_CXX_FLAGS="-Wno-macro-redefined $(CXXFLAGS) $(CPPFLAGS)" \
 		-DCMAKE_ASM_FLAGS="$(ASMFLAGS) $(CPPFLAGS)" \
 		-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS)" \
 		-DCMAKE_SYSTEM_NAME=$$system_name \
 		-DCMAKE_SYSTEM_PROCESSOR=$(host_cpu) \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=on \
-		-DBUILD_TESTING=OFF \
 		-GNinja \
 		..
 
@@ -290,7 +289,7 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION).tar.bz2 $(nghttp3_static_libs) $
 
 	./configure $$config_flags \
 		CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS)" \
-		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) -pthread" \
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="-pthread $(LDFLAGS)" \
 		PKG_CONFIG_PATH="$(nghttp3_install_dir)/lib/pkgconfig" \
 		BORINGSSL_LIBS="-L$(boringssl_dir)/lib -lssl -lcrypto" \
 		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include"
