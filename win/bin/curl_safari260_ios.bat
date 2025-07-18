@@ -7,21 +7,20 @@
     --curves "X25519:P-256:P-384:P-521" ^
     --signature-hashes "ecdsa_secp256r1_sha256:rsa_pss_rsae_sha256:rsa_pkcs1_sha256:ecdsa_secp384r1_sha384:rsa_pss_rsae_sha384:rsa_pss_rsae_sha384:rsa_pkcs1_sha384:rsa_pss_rsae_sha512:rsa_pkcs1_sha512:rsa_pkcs1_sha1" ^
     -H "sec-fetch-dest: document" ^
-    -H "user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15" ^
+    -H "user-agent: Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1" ^
     -H "accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" ^
     -H "sec-fetch-site: none" ^
     -H "sec-fetch-mode: navigate" ^
     -H "accept-language: en-US,en;q=0.9" ^
     -H "priority: u=0, i" ^
-    -H "accept-encoding: gzip, deflate, br" ^
+    -H "accept-encoding: gzip, deflate, br, zstd" ^
     --http2 ^
-    --http2-settings "2:0;3:100;4:2097152;8:1;9:1" ^
+    --http2-settings "2:0;3:100;4:2097152;9:1" ^
     --http2-pseudo-headers-order "msap" ^
     --http2-window-update 10420225 ^
-    --http2-stream-weight 256 ^
-    --http2-stream-exclusive 0 ^
+    --http2-no-priority ^
     --compressed ^
-    --tlsv1.0 --no-tls-session-ticket ^
+    --tlsv1.2 ^
     --cert-compression zlib ^
     --tls-grease ^
     --tls-signed-cert-timestamps ^

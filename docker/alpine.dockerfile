@@ -39,7 +39,7 @@ RUN ./configure --prefix=/build/install \
 FROM alpine:3.21
 
 RUN apk update && \
-    apk add ca-certificates \
+    apk add ca-certificates libc++ zstd \
     && rm -rf /var/cache/apk/*
 
 COPY --from=builder /build/install /usr/local
@@ -47,4 +47,4 @@ COPY --from=builder /build/install /usr/local
 # Replace /usr/bin/env bash with /usr/bin/env ash
 RUN sed -i 's@/usr/bin/env bash@/usr/bin/env ash@' /usr/local/bin/curl_*
 
-CMD ["curl", "--version"]
+CMD ["curl-impersonate", "--version"]

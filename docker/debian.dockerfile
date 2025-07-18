@@ -37,7 +37,7 @@ RUN ./configure --prefix=/build/install \
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
-    apt-get install -y ca-certificates \
+    apt-get install -y ca-certificates libc++1 libc++abi1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/install /usr/local
@@ -45,4 +45,4 @@ COPY --from=builder /build/install /usr/local
 # Update the loader's cache
 RUN ldconfig
 
-CMD ["curl", "--version"]
+CMD ["curl-impersonate", "--version"]
