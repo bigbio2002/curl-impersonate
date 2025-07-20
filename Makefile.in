@@ -81,7 +81,7 @@ help: ## Show this help message
 .PHONY: help
 .DEFAULT_GOAL := help
 
-build: curl-$(CURL_VERSION)/.chrome
+build: curl-$(CURL_VERSION)/.chrome ## Initiate the build
 	cd curl-$(CURL_VERSION)
 	# Don't pass this Makefile's MAKEFLAGS
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
@@ -101,7 +101,7 @@ else
 endif
 .PHONY: checkbuild
 
-install:
+install: ## Install built binaries to $prefix
 	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec MAKEFLAGS=
 	# Wrapper scripts for the cli shortcut (e.g. 'curl_chrome99')
@@ -124,7 +124,7 @@ uninstall: ## Uninstall the Chrome version of curl-impersonate after 'make insta
 	rm -f $(DESTDIR)@bindir@/curl_*
 .PHONY: uninstall
 
-clean:
+clean: ## Remove component build directories
 	## Remove all build artifacts, including dependencies
 	rm -Rf brotli-$(BROTLI_VERSION)
 	rm -Rf boringssl-$(BORING_SSL_COMMIT)
@@ -134,7 +134,7 @@ clean:
 	rm -Rf curl-$(CURL_VERSION)
 .PHONY: clean
 
-distclean: clean ## Remove all build artifacts, including dependencies
+distclean: clean ## Remove all build artifacts, including source tarballs
 	rm -f brotli-$(BROTLI_VERSION).tar.gz
 	rm -f boringssl-$(BORING_SSL_COMMIT).zip
 	rm -f nghttp2-$(NGHTTP2_VERSION).tar.bz2
