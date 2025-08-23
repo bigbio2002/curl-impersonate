@@ -186,6 +186,7 @@ jobs:
           cp ngtcp2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp brotli*/out/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp boringssl*/lib/lib*.a ${{ runner.temp }}/install/lib
+          cp c-ares*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
 
           cd ${{ runner.temp }}/install/lib
           ls -lah .
