@@ -6,7 +6,10 @@ config.log
 config.status
 .DS_Store
 *~
-brotli-*
 boringssl-*
+brotli-*
+c-ares-*
 nghttp2-*
+nghttp3-*
+ngtcp2-*
 curl-*
