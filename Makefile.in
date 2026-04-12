@@ -56,7 +56,6 @@ CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
-CCAS = @CCAS@
 CCASFLAGS = @CCASFLAGS@
 LIBS = @LIBS@
 LDFLAGS = @LDFLAGS@
@@ -137,8 +136,8 @@ endif
 install: ## Install built binaries to $prefix
 	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec DESTDIR="$(DESTDIR)" MAKEFLAGS=
-	mkdir -p "$(DESTDIR)@includedir@"
-	cp -R include/curl "$(DESTDIR)@includedir@"
+	mkdir -p "$(DESTDIR)@includedir@/curl-impersonate"
+	cp -R include/curl/*.h "$(DESTDIR)@includedir@/curl-impersonate/"
 	# Wrapper scripts for the cli shortcut (e.g. 'curl_chrome99')
 	install $(srcdir)/bin/curl_* "$(DESTDIR)@bindir@"
 .PHONY: install
@@ -146,8 +145,8 @@ install: ## Install built binaries to $prefix
 install-strip: ## Like 'install', but strip binaries for smaller size
 	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec DESTDIR="$(DESTDIR)" MAKEFLAGS=
-	mkdir -p "$(DESTDIR)@includedir@"
-	cp -R include/curl "$(DESTDIR)@includedir@"
+	mkdir -p "$(DESTDIR)@includedir@/curl-impersonate"
+	cp -R include/curl/*.h "$(DESTDIR)@includedir@/curl-impersonate/"
 	# We could have used 'install-strip' but then the docs would be installed as well.
 	# Instead strip manually.
 	$(STRIP) "$(DESTDIR)@bindir@/curl-impersonate"
@@ -158,6 +157,7 @@ install-strip: ## Like 'install', but strip binaries for smaller size
 uninstall: ## Uninstall the Chrome version of curl-impersonate
 	cd curl-$(CURL_VERSION)
 	$(MAKE) uninstall DESTDIR="$(DESTDIR)" MAKEFLAGS=
+	rm -Rf "$(DESTDIR)@includedir@/curl-impersonate"
 	rm -f "$(DESTDIR)@bindir@/curl_*"
 .PHONY: uninstall
 
@@ -223,13 +223,14 @@ brotli-$(BROTLI_VERSION).tar.gz:
 		-o brotli-${BROTLI_VERSION}.tar.gz
 
 # Patch brotli and use a dummy '.patched' file to mark it patched
-brotli-$(BROTLI_VERSION)/.patched: $(srcdir)/patches/brotli.patch
+brotli-$(BROTLI_VERSION)/.patched: brotli-$(BROTLI_VERSION).tar.gz $(srcdir)/patches/brotli.patch
 	tar xf brotli-$(BROTLI_VERSION).tar.gz
 	cd brotli-$(BROTLI_VERSION)
-	for p in $^; do patch -p1 < $$p; done
+	#for p in $^; do patch -p1 < $$p; done
+	patch -p1 < $(srcdir)/patches/brotli.patch
 	touch .patched
 
-$(brotli_static_libs): brotli-$(BROTLI_VERSION).tar.gz brotli-$(BROTLI_VERSION)/.patched
+$(brotli_static_libs): brotli-$(BROTLI_VERSION)/.patched
 	mkdir -p brotli-$(BROTLI_VERSION)/out
 	cd brotli-$(BROTLI_VERSION)/out
 
@@ -574,17 +575,6 @@ curl-$(CURL_VERSION)/.chrome: $(chrome_libs) curl-$(CURL_VERSION)/.patched
 	echo PKG_CONFIG_PATH="$(ngtcp2_install_dir)/lib/pkgconfig"
 	echo "Configuring curl with: $$config_flags"
 
-#	LDFLAGS="-Wl,-rpath,$(ngtcp2_install_dir)/lib" \
-#	{ \
-#		lib_path="$(nghttp2_install_dir)/lib:$(ngtcp2_install_dir)/lib:$(nghttp3_install_dir)/lib:$(zstd_install_dir)/lib:$(zlib_install_dir)/lib:$(brotli_install_dir)/lib"; \
-#		case "$(host_os)" in \
-#		  darwin*|ios*|tvos*|watchos*) ;; \
-#		  *) lib_path="$$lib_path:$(libidn2_install_dir)/lib:$(libunistring_install_dir)/lib" ;; \
-#		esac; \
-#	}
-#
-#	DYLD_LIBRARY_PATH="$$lib_path" \
-#	LD_LIBRARY_PATH="$$lib_path"
 	{ \
 		lib_path="$(nghttp2_install_dir)/lib:$(ngtcp2_install_dir)/lib:$(nghttp3_install_dir)/lib:$(zstd_install_dir)/lib:$(zlib_install_dir)/lib:$(brotli_install_dir)/lib"; \
 		case "$(host_os)" in \
