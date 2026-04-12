@@ -7,6 +7,7 @@ on:
       - feature/*
       - bugfix/*
       - chore/*
+      - security/*
     tags:
       - "v*"
   pull_request:
@@ -19,7 +20,7 @@ permissions:
 env:
   BORING_SSL_COMMIT: 673e61fc215b178a90c0e67858bbf162c8158993
   MACOSX_DEPLOYMENT_TARGET: 11.0
-  API: "30"  # Targeting android API version, Android 11
+  API: "21"  # Targeting an very old android API version
 
 jobs:
   build:
@@ -79,6 +80,13 @@ jobs:
             zigflags: -target riscv64-linux-gnu.2.27
             make: make
           - os: ubuntu-latest
+            platform: linux
+            arch: loongarch64
+            host: loongarch64-linux-gnu
+            host_label: loongarch64-linux-gnu
+            zigflags: -target loongarch64-linux-gnu.2.36 -fPIC
+            make: make
+          - os: ubuntu-latest
             platform: android
             arch: aarch64
             host: aarch64-linux-android
@@ -136,7 +144,6 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r26d
-          local-cache: true
 
       - name: Set Android toolchain env
         if: matrix.platform == 'android'
@@ -152,6 +159,8 @@ jobs:
           echo "LD=$TOOLCHAIN/bin/ld" >> $GITHUB_ENV
           echo "RANLIB=$TOOLCHAIN/bin/llvm-ranlib" >> $GITHUB_ENV
           echo "STRIP=$TOOLCHAIN/bin/llvm-strip" >> $GITHUB_ENV
+          echo "CFLAGS=-fPIC" >> $GITHUB_ENV
+          echo "CXXFLAGS=-fPIC" >> $GITHUB_ENV
 
       - name: Set iOS toolchain env
         if: matrix.platform == 'ios'
@@ -183,7 +192,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install build-essential pkg-config cmake ninja-build curl autoconf automake libtool
-          sudo apt-get install gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-riscv64-linux-gnu
+          sudo apt-get install gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-riscv64-linux-gnu gcc-14-loongarch64-linux-gnu
           sudo apt-get install golang-go
 
       - name: Install macOS dependencies
@@ -231,7 +240,7 @@ jobs:
           cp ngtcp2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp brotli*/out/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp boringssl*/lib/lib*.a ${{ runner.temp }}/install/lib
-          if [[ "${{ matrix.platform }}" == "linux" || "${{ matrix.platform }}" == "android" ]]; then
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
             cp libidn2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
             cp libunistring*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           fi
@@ -239,7 +248,7 @@ jobs:
           cd ${{ runner.temp }}/install/lib
           mv libcurl-impersonate.a libcurl-impersonate.orig.a
           lib_list="libcurl-impersonate.orig.a libz.a libzstd.a libbrotlidec.a libbrotlicommon.a libbrotlienc.a libnghttp2.a libnghttp3.a libngtcp2.a libngtcp2_crypto_boringssl.a libssl.a libcrypto.a"
-          if [[ "${{ matrix.platform }}" == "linux" || "${{ matrix.platform }}" == "android" ]]; then
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
             lib_list="$lib_list libidn2.a"
           fi
           if [[ "${{ runner.os }}" == "macOS" || "${{ matrix.platform }}" == "ios" ]]; then
@@ -250,7 +259,7 @@ jobs:
             rm -f libcurl-impersonate.full.o
           fi
           rm -f libz.a libzstd.a libbrotlidec.a libbrotlicommon.a libbrotlienc.a libnghttp2.a libnghttp3.a libngtcp2.a libngtcp2_crypto_boringssl.a libssl.a libcrypto.a
-          if [[ "${{ matrix.platform }}" == "linux" || "${{ matrix.platform }}" == "android" ]]; then
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
             rm -f libidn2.a libunistring.a
           fi
           rm -f libcurl-impersonate.orig.a
