@@ -1,7 +1,8 @@
+Makefile
 build/
 **/__pycache__
+aclocal.m4
 autom4te.cache/
-Makefile
 config.log
 config.status
 .DS_Store
@@ -9,7 +10,11 @@ config.status
 boringssl-*
 brotli-*
 c-ares-*
+curl-*
 nghttp2-*
 nghttp3-*
 ngtcp2-*
-curl-*
+libidn2-*
+libunistring-*
+zlib-*
+zstd-*
