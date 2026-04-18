@@ -1,5 +1,6 @@
 name: Build for windows
 on:
+  workflow_call:
   push:
     branches:
       - main
@@ -7,14 +8,12 @@ on:
       - bugfix/*
       - chore/*
       - security/*
-    tags:
-      - "v*"
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   ZLIB_COMMIT: 09155eaa2f9270dc4ed1fa13e2b4b2613e6e4851
@@ -89,11 +88,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libcurl-impersonate.${{ matrix.env }}-win32.tar.gz
+          name: artifacts.windows.${{ matrix.env }}
           path: ./libcurl-impersonate*.tar.gz
-
-      - name: Upload release files
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: libcurl-impersonate-${{ github.head_ref || github.ref_name }}.${{ matrix.env }}-win32.tar.gz

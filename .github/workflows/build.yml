@@ -1,6 +1,7 @@
 name: "Build on Linux/Darwin"
 
 on:
+  workflow_call:
   push:
     branches:
       - main
@@ -8,14 +9,12 @@ on:
       - bugfix/*
       - chore/*
       - security/*
-    tags:
-      - "v*"
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   BORING_SSL_COMMIT: 673e61fc215b178a90c0e67858bbf162c8158993
@@ -269,7 +268,6 @@ jobs:
           else
             tar -c -z -f ${{ runner.temp }}/libcurl-impersonate.${{ matrix.host_label }}.tar.gz lib*
           fi
-          echo "release_file_lib=${{ runner.temp }}/libcurl-impersonate-${{ github.ref_name }}.${{ matrix.host_label }}.tar.gz" >> $GITHUB_ENV
 
           cd ${{ runner.temp }}/install/bin
           if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
@@ -277,7 +275,6 @@ jobs:
           else
             tar -c -z -f ${{ runner.temp }}/curl-impersonate.${{ matrix.host_label }}.tar.gz curl-impersonate curl_*
           fi
-          echo "release_file_bin=${{ runner.temp }}/curl-impersonate-${{ github.ref_name }}.${{ matrix.host_label }}.tar.gz" >> $GITHUB_ENV
 
       - name: Create iOS XCFramework slice
         if: matrix.platform == 'ios'
@@ -301,14 +298,6 @@ jobs:
         with:
           name: ios-slice.${{ matrix.host_label }}
           path: ${{ runner.temp }}/ios-slice
-
-      - name: Upload release files
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-              ${{ env.release_file_lib }}
-              ${{ env.release_file_bin }}
 
   ios-xcframework:
     name: (iOS) Create XCFramework
@@ -342,17 +331,9 @@ jobs:
           else
             tar -c -z -f ${{ runner.temp }}/libcurl-impersonate.ios-xcframework.tar.gz libcurl-impersonate.xcframework
           fi
-          echo "release_file_xcframework=${{ runner.temp }}/libcurl-impersonate-${{ github.ref_name }}.ios-xcframework.tar.gz" >> $GITHUB_ENV
 
       - name: Upload XCFramework artifact
         uses: actions/upload-artifact@v4
         with:
           name: artifacts.ios-xcframework
           path: ${{ runner.temp }}/libcurl-impersonate*.ios-xcframework.tar.gz
-
-      - name: Upload XCFramework release file
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            ${{ env.release_file_xcframework }}
