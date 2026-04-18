@@ -113,7 +113,9 @@ build: curl-$(CURL_VERSION)/.chrome ## Initiate the build
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 .PHONY: build
 
-checkbuild: ## Run basic checks on the built binary
+curl-$(CURL_VERSION)/src/curl-impersonate: build
+
+checkbuild: curl-$(CURL_VERSION)/src/curl-impersonate ## Run basic checks on the built binary
 ifeq ($(host),$(build))
 	cd curl-$(CURL_VERSION)
 	# Make sure all needed features were compiled in
@@ -133,7 +135,7 @@ else
 endif
 .PHONY: checkbuild
 
-install: ## Install built binaries to $prefix
+install: curl-$(CURL_VERSION)/src/curl-impersonate ## Install built binaries to $prefix
 	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec DESTDIR="$(DESTDIR)" MAKEFLAGS=
 	mkdir -p "$(DESTDIR)@includedir@/curl-impersonate"
@@ -142,7 +144,7 @@ install: ## Install built binaries to $prefix
 	install $(srcdir)/bin/curl_* "$(DESTDIR)@bindir@"
 .PHONY: install
 
-install-strip: ## Like 'install', but strip binaries for smaller size
+install-strip: curl-$(CURL_VERSION)/src/curl-impersonate ## Like 'install', but strip binaries for smaller size
 	cd curl-$(CURL_VERSION)
 	$(MAKE) install-exec DESTDIR="$(DESTDIR)" MAKEFLAGS=
 	mkdir -p "$(DESTDIR)@includedir@/curl-impersonate"
@@ -154,11 +156,12 @@ install-strip: ## Like 'install', but strip binaries for smaller size
 	install $(srcdir)/bin/curl_* "$(DESTDIR)@bindir@"
 .PHONY: install-strip
 
-uninstall: ## Uninstall the Chrome version of curl-impersonate
+uninstall: curl-$(CURL_VERSION)/.chrome ## Uninstall the Chrome version of curl-impersonate
 	cd curl-$(CURL_VERSION)
 	$(MAKE) uninstall DESTDIR="$(DESTDIR)" MAKEFLAGS=
 	rm -Rf "$(DESTDIR)@includedir@/curl-impersonate"
-	rm -f "$(DESTDIR)@bindir@/curl_*"
+	#rm -f "$(DESTDIR)@bindir@"/curl_*"	# this doesn't work as you'd expect
+	find "$(DESTDIR)@bindir@" -type f -name curl_\* -delete
 .PHONY: uninstall
 
 clean: ## Remove component build directories
