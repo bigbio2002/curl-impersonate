@@ -238,7 +238,7 @@ $(brotli_static_libs): brotli-$(BROTLI_VERSION)/.patched
 	cd brotli-$(BROTLI_VERSION)/out
 
 	# Convert autoconf style os name to CMake style os name.
-	case "$(host_os)" in           \
+	case "$(host_os)" in         \
 	  *android*)                 \
 	    system_name=Android      \
 	    ;;                       \
@@ -296,21 +296,21 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT)/.patched
 
 	# Convert autoconf style os name to CMake style os name.
 	case "$(host_os)" in      \
-	  *android*)            \
-	    system_name=Android \
-	    ;;                  \
-	  linux*)               \
-	    system_name=Linux   \
-	    ;;                  \
-	  ios*)                 \
-	    system_name=iOS     \
-	    ;;                  \
+	  *android*)              \
+	    system_name=Android   \
+	    ;;                    \
+	  linux*)                 \
+	    system_name=Linux     \
+	    ;;                    \
+	  ios*)                   \
+	    system_name=iOS       \
+	    ;;                    \
 	  darwin*|tvos*|watchos*) \
-	    system_name=Darwin  \
-	    ;;                  \
-	  *)                    \
-	    system_name=Linux   \
-	    ;;                  \
+	    system_name=Darwin    \
+	    ;;                    \
+	  *)                      \
+	    system_name=Linux     \
+	    ;;                    \
 	esac
 
 	{ \
@@ -374,8 +374,7 @@ $(nghttp2_static_libs): nghttp2-$(NGHTTP2_VERSION).tar.bz2
 
 	./configure $$config_flags \
 		CC="$(cc_compiler)" CXX="$(cxx_compiler)" CPPFLAGS="$(CPPFLAGS)" \
-		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
-		LDFLAGS="$(LDFLAGS)"
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
@@ -446,8 +445,7 @@ $(nghttp3_static_libs): nghttp3-$(NGHTTP3_VERSION)/.patched
 
 	./configure $$config_flags \
 		CC="$(cc_compiler)" CXX="$(cxx_compiler)" CPPFLAGS="$(CPPFLAGS)" \
-		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
-		LDFLAGS="$(LDFLAGS)"
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
 	$(MAKE) MAKEFLAGS=-j$(SUBJOBS)
 	$(MAKE) install MAKEFLAGS=
 
