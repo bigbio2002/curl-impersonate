@@ -188,6 +188,8 @@ distclean: clean ## Remove all build artifacts, including source tarballs
 	rm -f libunistring-$(LIBUNISTRING_VERSION).tar.gz
 	rm -f libidn2-$(LIBIDN2_VERSION).tar.gz
 	rm -f curl-$(CURL_VERSION).tar.gz
+
+	rm -f config.log config.status Makefile
 .PHONY: distclean
 
 zlib-$(ZLIB_VERSION).tar.gz:
@@ -335,8 +337,8 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT)/.patched
 		-DCMAKE_POSITION_INDEPENDENT_CODE=on \
 		-DCMAKE_C_COMPILER="$(cc_compiler)" \
 		-DCMAKE_CXX_COMPILER="$(cxx_compiler)" \
-		-DCMAKE_C_FLAGS="$(CPPFLAGS) $(CFLAGS) $(cc_extra_flags) -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined -Wno-error=maybe-uninitialized -Wno-error=unused-function" \
-		-DCMAKE_CXX_FLAGS="$(CPPFLAGS) $(CXXFLAGS) $(cxx_extra_flags) -Wno-macro-redefined" \
+		-DCMAKE_C_FLAGS="-Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined -Wno-error=maybe-uninitialized -Wno-error=unused-function $(CPPFLAGS) $(CFLAGS) $(cc_extra_flags)" \
+		-DCMAKE_CXX_FLAGS="-Wno-macro-redefined $(CPPFLAGS) $(CXXFLAGS) $(cxx_extra_flags)" \
 		-DCMAKE_ASM_FLAGS="$(CPPFLAGS) $(CCASFLAGS)" \
 		-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS)" \
 		-DCMAKE_SYSTEM_NAME=$$system_name \
@@ -410,7 +412,7 @@ $(ngtcp2_static_libs): ngtcp2-$(NGTCP2_VERSION)/.patched $(nghttp3_static_libs) 
 	./configure $$config_flags \
 		CC="$(cc_compiler)" CXX="$(cxx_compiler)" CPPFLAGS="$(CPPFLAGS)" \
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
-		LDFLAGS="$(LDFLAGS) -pthread" \
+		LDFLAGS="-pthread $(LDFLAGS)" \
 		PKG_CONFIG_PATH="$(nghttp3_install_dir)/lib/pkgconfig" \
 		BORINGSSL_LIBS="-L$(boringssl_install_dir)/ssl -lssl -L$(boringssl_install_dir)/crypto -lcrypto" \
 		BORINGSSL_CFLAGS="-I$(boringssl_dir)/include"
